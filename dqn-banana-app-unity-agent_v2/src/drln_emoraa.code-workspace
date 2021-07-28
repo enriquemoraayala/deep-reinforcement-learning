@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"path": "../../../deep-reinforcement-learning"
+		}
+	],
+	"settings": {}
+}
