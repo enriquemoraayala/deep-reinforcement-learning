@@ -19,14 +19,14 @@ class QNetwork(nn.Module):
         super(QNetwork, self).__init__()
         self.seed = torch.manual_seed(seed)
 
-        # 3 input image channel (RGB), 32 output channels
+        # 1 input image channel (RGB), 32 output channels
         # 8x8 square convolution kernel
         # stride = 4
         # output size = (W-F)/S +1 = (84-8)/4 +1 = 20
         # the output Tensor for one image, will have the dimensions:
         # (32, 20, 20)
 
-        self.conv1 = nn.Conv2d(3, 32, 8, stride=4)
+        self.conv1 = nn.Conv2d(1, 32, 8, stride=4)
 
         # second conv layer: 32 inputs, 64 outputs, 4x4 conv, stride 2
         # output size = (W-F)/S +1 = (20-4)/2 +1 = 9

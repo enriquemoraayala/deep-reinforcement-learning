@@ -2,9 +2,61 @@ import gym
 import random
 import torch
 import numpy as np
+import cv2
 import matplotlib.pyplot as plt
 from collections import deque
 from visual_dqn_agent import Agent
+
+
+def preprocess_frame(screen, exclude, output):
+    """Preprocess Image.
+        Params
+        ======
+            screen (array): RGB Image
+            exclude (tuple): Section to be croped (UP, RIGHT, DOWN, LEFT)
+            output (int): Size of output image
+        """
+    # TConver image to gray scale
+    screen = cv2.cvtColor(screen, cv2.COLOR_RGB2GRAY)
+
+    # Crop screen[Up: Down, Left: right]
+    screen = screen[exclude[0]:exclude[2], exclude[3]:exclude[1]]
+
+    # Convert to float, and normalized
+    screen = np.ascontiguousarray(screen, dtype=np.float32) / 255
+
+    # Resize image to 84 * 84
+    screen = cv2.resize(screen, (output, output),
+                        interpolation=cv2.INTER_AREA)
+    return screen
+
+
+def stack_frame(stacked_frames, frame, is_new):
+    """Stacking Frames.
+
+        Params
+        ======
+            stacked_frames (array): Four Channel Stacked Frame
+            frame: Preprocessed Frame to be added
+            is_new: Is the state First
+        """
+    if is_new:
+        stacked_frames = np.stack(arrays=[frame, frame, frame, frame])
+        stacked_frames = stacked_frames
+    else:
+        stacked_frames[0] = stacked_frames[1]
+        stacked_frames[1] = stacked_frames[2]
+        stacked_frames[2] = stacked_frames[3]
+        stacked_frames[3] = frame
+
+    return stacked_frames
+
+
+def stack_frames(frames, state, is_new=False):
+    frame = preprocess_frame(state, (8, -12, -12, 4), 84)
+    frames = stack_frame(frames, frame, is_new)
+
+    return frames
 
 
 def cnn_dqn(env, ckp_path, n_episodes=2000,
@@ -23,39 +75,30 @@ def cnn_dqn(env, ckp_path, n_episodes=2000,
     """
     scores = []
     scores_window = deque(maxlen=100)  # last 100 scores
+    state = stack_frames(None, env.reset(), True)
     eps = eps_start
-    brain_name = env.brain_names[0]
-    brain = env.brains[brain_name]
-    env_info = env.reset(train_mode=True)[brain_name]
-    state = env_info.visual_observations[0]
 
-    # number of agents in the environment
-    print('Number of agents:', len(env_info.agents))
-
-    # number of actions
-    action_size = brain.vector_action_space_size
-    print('Number of actions:', action_size)
-
-    # examine the state space
-    print('States look like:')
-    plt.imshow(np.squeeze(state))
+    action0 = 0  # do nothing
+    observation0, reward0, terminal, info = env.step(action0)
+    print("Before processing: " + str(np.array(observation0).shape))
+    plt.imshow(np.array(observation0))
     plt.show()
-    state_size = state.shape
-    print('States have shape:', state.shape)
-
-    agent = Agent(state_size, action_size, seed=0)
+    observation0 = preprocess_frame(observation0)
+    print("After processing: " + str(np.array(observation0).shape))
+    plt.imshow(np.array(np.squeeze(observation0)))
+    plt.show()
+    action_size = env.action_space.n
+    agent = Agent(action_size, seed=0)
 
     # initialize epsilon
     for i_episode in range(1, n_episodes+1):
-        env_info = env.reset(train_mode=True)[brain_name]
+        state = stack_frames(None, env.reset(), True)
         score = 0
-
         for t in range(max_t):
             action = agent.act(state, eps)
-            env_info = env.step(action)[brain_name]
-            next_state = env_info.visual_observations[0]   # get the next state
-            reward = env_info.rewards[0]                   # get the reward
-            done = env_info.local_done[0]
+            next_state, reward, done, info = env.step(action)
+            next_state = preprocess_frame(next_state)
+            next_state = stack_frames(state, next_state, False)
             agent.step(state, action, reward, next_state, done)
             state = next_state
             score += reward
@@ -70,7 +113,7 @@ def cnn_dqn(env, ckp_path, n_episodes=2000,
             print('\rEpisode {}\tAverage Score: {:.2f}'
                   .format(i_episode, np.mean(scores_window)))
             torch.save(agent.qnetwork_local.state_dict(), ckp_path)
-        if np.mean(scores_window) >= 13.0:
+        if np.mean(scores_window) >= 350.0:
             print('\nEnvironment solved in {:d} episodes!\t \
                   Average Score: {:.2f}'.format(i_episode-100,
                                                 np.mean(scores_window)))
@@ -79,10 +122,12 @@ def cnn_dqn(env, ckp_path, n_episodes=2000,
     return scores
 
 
-def train_agent(env_path):
+def train_agent():
     env = gym.make('SpaceInvaders-v0')
+    env.reset()
     print(env.action_space)
     print(env.observation_space)
+    print(env.env.get_action_meanings())
     scores = cnn_dqn(env, 'checkpoint_visual_atari.pth')
     return scores
 

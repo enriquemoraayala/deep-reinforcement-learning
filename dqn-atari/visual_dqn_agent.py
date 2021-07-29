@@ -22,7 +22,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class Agent():
     """Interacts with and learns from the environment."""
 
-    def __init__(self, state_size, action_size, seed):
+    def __init__(self, action_size, seed):
         """Initialize an Agent object.
         Params
         ======
@@ -30,16 +30,21 @@ class Agent():
             action_size (int): dimension of each action
             seed (int): random seed
         """
-        self.state_size = state_size
         self.action_size = action_size
         self.seed = random.seed(seed)
 
         # image pre-process
+        # self.preprocess = transforms.Compose([
+        #                              transforms.ToTensor(),
+        #                              transforms.Normalize(
+        #                                  mean=[0.485, 0.456, 0.406],
+        #                                  std=[0.229, 0.224, 0.225]
+        #                              )])
         self.preprocess = transforms.Compose([
                                      transforms.ToTensor(),
                                      transforms.Normalize(
-                                         mean=[0.485, 0.456, 0.406],
-                                         std=[0.229, 0.224, 0.225]
+                                         mean=[0.5],
+                                         std=[0.5]
                                      )])
 
         # Q-Network
@@ -75,7 +80,7 @@ class Agent():
             eps (float): epsilon, for epsilon-greedy action selection
         """
         # state: original image to transformed
-        state = self.preprocess(state[0])
+        state = self.preprocess(state)
         # state = torch.from_numpy(state).float().unsqueeze(0).to(device)
         state = state.float().unsqueeze(0).to(device)
         self.qnetwork_local.eval()
@@ -162,14 +167,14 @@ class ReplayBuffer:
         self.preprocess = transforms.Compose([
                                      transforms.ToTensor(),
                                      transforms.Normalize(
-                                         mean=[0.485, 0.456, 0.406],
-                                         std=[0.229, 0.224, 0.225]
+                                         mean=[0.5],
+                                         std=[0.5]
                                      )])
 
     def add(self, state, action, reward, next_state, done):
         """Add a new experience to memory."""
         # saving the first element of the batch
-        e = self.experience(state[0], action, reward, next_state[0], done)
+        e = self.experience(state, action, reward, next_state, done)
         self.memory.append(e)
 
     def sample(self):
