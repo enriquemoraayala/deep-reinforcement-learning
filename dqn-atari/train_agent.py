@@ -4,14 +4,8 @@ import random
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-import argparse
-import os
 from collections import deque
 from visual_dqn_agent import Agent
-from setup_logger import logger
-from torch.utils.tensorboard import SummaryWriter
-
-writer = SummaryWriter('/opt/ml/output/tensorboard/')
 
 
 def cnn_dqn(env, ckp_path, n_episodes=2000,
@@ -94,36 +88,6 @@ def train_agent(env_path):
 
 if __name__ == '__main__':
 
-    parser_sagemaker = argparse.ArgumentParser()
-    env = os.environ['SM_TRAINING_ENV']
-    parser_sagemaker.add_argument('--hosts', type=list,
-                                  default=os.environ['SM_HOSTS'])
-    parser_sagemaker.add_argument('--current_host', type=str,
-                                  default=os.environ['SM_CURRENT_HOST'])
-    parser_sagemaker.add_argument('--model_dir', type=str,
-                                  default=os.environ['SM_MODEL_DIR'])
-    parser_sagemaker.add_argument('--data_dir', type=str,
-                                  default=os.environ['SM_INPUT_DIR'])
-    parser_sagemaker.add_argument('--num_gpus', type=int,
-                                  default=os.environ['SM_NUM_GPUS'])
-    parser_sagemaker.add_argument("--checkpoint_path",
-                                  type=str,
-                                  default="/opt/ml/checkpoints/",
-                                  help="Path where checkpoints will be saved.")
-
-    parser_sagemaker.add_argument('--train', type=str,
-                                  default=os.environ['SM_CHANNEL_TRAIN'])
-
-    args_sagemaker = parser_sagemaker.parse_args()
-
-    print(args_sagemaker.data_dir)
-    print(os.listdir(args_sagemaker.data_dir))
-    print(args_sagemaker.model_dir)
-    print(os.listdir(args_sagemaker.model_dir))
-    print(args_sagemaker.train)
-    print(os.listdir(args_sagemaker.train))
-    print(args_sagemaker.checkpoint_path)
-
-    env_path = args_sagemaker.data_dir + '/VisualBanana_Linux.zip'
-    print('env_path %s' % env_path)
+    env_path = '/Users/ESMoraEn/repositories/emoraa-deep-reinforcement-' + \
+             'learning/dqn-banana-app-unity-agent_v2/src/VisualBanana.app'
     train_agent(env_path)
