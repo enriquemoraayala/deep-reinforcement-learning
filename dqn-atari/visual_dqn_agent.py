@@ -41,11 +41,7 @@ class Agent():
         #                                  std=[0.229, 0.224, 0.225]
         #                              )])
         self.preprocess = transforms.Compose([
-                                     transforms.ToTensor(),
-                                     transforms.Normalize(
-                                         mean=[0.5],
-                                         std=[0.5]
-                                     )])
+                                     transforms.ToTensor()])
 
         # Q-Network
         self.qnetwork_local = QNetwork(action_size, seed).to(device)
@@ -80,7 +76,7 @@ class Agent():
             eps (float): epsilon, for epsilon-greedy action selection
         """
         # state: original image to transformed
-        state = self.preprocess(state)
+        state = torch.from_numpy(state)
         # state = torch.from_numpy(state).float().unsqueeze(0).to(device)
         state = state.float().unsqueeze(0).to(device)
         self.qnetwork_local.eval()
@@ -165,11 +161,7 @@ class ReplayBuffer:
                                                   "next_state", "done"])
         self.seed = random.seed(seed)
         self.preprocess = transforms.Compose([
-                                     transforms.ToTensor(),
-                                     transforms.Normalize(
-                                         mean=[0.5],
-                                         std=[0.5]
-                                     )])
+                                     transforms.ToTensor()])
 
     def add(self, state, action, reward, next_state, done):
         """Add a new experience to memory."""
@@ -181,14 +173,14 @@ class ReplayBuffer:
         """Randomly sample a batch of experiences from memory."""
         experiences = random.sample(self.memory, k=self.batch_size)
 
-        states = torch.vstack([self.preprocess(e.state).unsqueeze(0)
+        states = torch.vstack([torch.from_numpy(e.state).unsqueeze(0)
                               for e in experiences
                               if e is not None]).float().to(device)
         actions = torch.from_numpy(np.vstack([e.action for e in experiences
                                    if e is not None])).long().to(device)
         rewards = torch.from_numpy(np.vstack([e.reward for e in experiences
                                    if e is not None])).float().to(device)
-        next_states = torch.vstack([self.preprocess(e.next_state).unsqueeze(0)
+        next_states = torch.vstack([torch.from_numpy(e.next_state).unsqueeze(0)
                                    for e in experiences
                                    if e is not None]).float().to(device)
         dones = torch.from_numpy(np.vstack([e.done for e in experiences

@@ -26,7 +26,7 @@ class QNetwork(nn.Module):
         # the output Tensor for one image, will have the dimensions:
         # (32, 20, 20)
 
-        self.conv1 = nn.Conv2d(1, 32, 8, stride=4)
+        self.conv1 = nn.Conv2d(4, 32, 8, stride=4)
 
         # second conv layer: 32 inputs, 64 outputs, 4x4 conv, stride 2
         # output size = (W-F)/S +1 = (20-4)/2 +1 = 9

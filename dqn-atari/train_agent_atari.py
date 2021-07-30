@@ -1,62 +1,10 @@
 import gym
-import random
 import torch
 import numpy as np
-import cv2
 import matplotlib.pyplot as plt
 from collections import deque
 from visual_dqn_agent import Agent
-
-
-def preprocess_frame(screen, exclude, output):
-    """Preprocess Image.
-        Params
-        ======
-            screen (array): RGB Image
-            exclude (tuple): Section to be croped (UP, RIGHT, DOWN, LEFT)
-            output (int): Size of output image
-        """
-    # TConver image to gray scale
-    screen = cv2.cvtColor(screen, cv2.COLOR_RGB2GRAY)
-
-    # Crop screen[Up: Down, Left: right]
-    screen = screen[exclude[0]:exclude[2], exclude[3]:exclude[1]]
-
-    # Convert to float, and normalized
-    screen = np.ascontiguousarray(screen, dtype=np.float32) / 255
-
-    # Resize image to 84 * 84
-    screen = cv2.resize(screen, (output, output),
-                        interpolation=cv2.INTER_AREA)
-    return screen
-
-
-def stack_frame(stacked_frames, frame, is_new):
-    """Stacking Frames.
-
-        Params
-        ======
-            stacked_frames (array): Four Channel Stacked Frame
-            frame: Preprocessed Frame to be added
-            is_new: Is the state First
-        """
-    if is_new:
-        stacked_frames = np.stack(arrays=[frame, frame, frame, frame])
-        stacked_frames = stacked_frames
-    else:
-        stacked_frames[0] = stacked_frames[1]
-        stacked_frames[1] = stacked_frames[2]
-        stacked_frames[2] = stacked_frames[3]
-        stacked_frames[3] = frame
-
-    return stacked_frames
-
-
-def stack_frames(frames, state, is_new=False):
-    frame = preprocess_frame(state, (8, -12, -12, 4), 84)
-    frames = stack_frame(frames, frame, is_new)
-
-    return frames
+import process_frames as pf
 
 
 def cnn_dqn(env, ckp_path, n_episodes=2000,
@@ -75,7 +23,7 @@ def cnn_dqn(env, ckp_path, n_episodes=2000,
     """
     scores = []
     scores_window = deque(maxlen=100)  # last 100 scores
-    state = stack_frames(None, env.reset(), True)
+    state = pf.stack_frames(None, env.reset(), True)
     eps = eps_start
 
     action0 = 0  # do nothing
@@ -83,22 +31,21 @@ def cnn_dqn(env, ckp_path, n_episodes=2000,
     print("Before processing: " + str(np.array(observation0).shape))
     plt.imshow(np.array(observation0))
     plt.show()
-    observation0 = preprocess_frame(observation0)
+    observation0 = pf.preprocess_frame(observation0, (8, -12, -12, 4), 84)
     print("After processing: " + str(np.array(observation0).shape))
-    plt.imshow(np.array(np.squeeze(observation0)))
+    plt.imshow(np.array(np.squeeze(observation0)), cmap='gray')
     plt.show()
     action_size = env.action_space.n
     agent = Agent(action_size, seed=0)
 
     # initialize epsilon
     for i_episode in range(1, n_episodes+1):
-        state = stack_frames(None, env.reset(), True)
+        state = pf.stack_frames(None, env.reset(), True)
         score = 0
         for t in range(max_t):
             action = agent.act(state, eps)
             next_state, reward, done, info = env.step(action)
-            next_state = preprocess_frame(next_state)
-            next_state = stack_frames(state, next_state, False)
+            next_state = pf.stack_frames(state, next_state, False)
             agent.step(state, action, reward, next_state, done)
             state = next_state
             score += reward
@@ -129,6 +76,13 @@ def train_agent():
     print(env.observation_space)
     print(env.env.get_action_meanings())
     scores = cnn_dqn(env, 'checkpoint_visual_atari.pth')
+    # plot the scores
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    plt.plot(np.arange(len(scores)), scores)
+    plt.ylabel('Score')
+    plt.xlabel('Episode #')
+    plt.show()
     return scores
 
 
