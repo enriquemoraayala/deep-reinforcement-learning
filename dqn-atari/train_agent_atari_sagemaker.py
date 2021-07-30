@@ -36,12 +36,12 @@ def cnn_dqn(env, ckp_path, n_episodes=2000,
     action0 = 0  # do nothing
     observation0, reward0, terminal, info = env.step(action0)
     print("Before processing: " + str(np.array(observation0).shape))
-    plt.imshow(np.array(observation0))
-    plt.show()
+    # plt.imshow(np.array(observation0))
+    # plt.show()
     observation0 = pf.preprocess_frame(observation0, (8, -12, -12, 4), 84)
     print("After processing: " + str(np.array(observation0).shape))
-    plt.imshow(np.array(np.squeeze(observation0)), cmap='gray')
-    plt.show()
+    # plt.imshow(np.array(np.squeeze(observation0)), cmap='gray')
+    # plt.show()
     action_size = env.action_space.n
     agent = Agent(action_size, seed=0)
 
