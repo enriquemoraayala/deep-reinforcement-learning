@@ -6,8 +6,9 @@ from matplotlib import animation
 from visual_dqn_agent import Agent
 
 
-def save_frames_as_gif(frames, path='./', filename='gym_animation_1200_episodes.gif'):
+def save_frames_as_gif(frames, num,  path='./', filename='gym_animation_1200_episodes.gif'):
 
+    filename = 'gym_animation_1200_episodes_' + str(num) +'.gif'
     # Mess with this to change frame size
     plt.figure(figsize=(frames[0].shape[1] / 72.0, frames[0].shape[0] / 72.0), dpi=72)
 
@@ -26,21 +27,25 @@ def render_agent(model_path):
     action_size = env.action_space.n
     agent = Agent(action_size, seed=0)
     device = torch.device('cpu')
-    agent.load_from_checkpoint(model_path, device)
-    score = 0
-    state = pf.stack_frames(None, env.reset(), True)
-    frames = []
-    while True:
-        frames.append(env.render(mode="rgb_array"))
-        action = agent.act(state)
-        next_state, reward, done, _ = env.step(action)
-        score += reward
-        state = pf.stack_frames(state, next_state, False)
-        if done:
-            print("You Final score is:", score)
-            save_frames_as_gif(frames)
-            break
-        env.close()
+    # agent.load_from_checkpoint(model_path, device)
+
+    for i in range(4):
+        print('Running agent %d' % i)
+        agent.resume_from_checkpoint(model_path, device)
+        score = 0
+        state = pf.stack_frames(None, env.reset(), True)
+        frames = []
+        while True:
+            frames.append(env.render(mode="rgb_array"))
+            action = agent.act(state)
+            next_state, reward, done, _ = env.step(action)
+            score += reward
+            state = pf.stack_frames(state, next_state, False)
+            if done:
+                print("You Final score is:", score)
+                save_frames_as_gif(frames, i)
+                break
+    env.close()
 
 
 def init_env():

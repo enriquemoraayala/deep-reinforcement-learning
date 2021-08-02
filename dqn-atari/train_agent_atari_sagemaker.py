@@ -50,18 +50,18 @@ def cnn_dqn(env, dir_path, file_name, n_episodes=2000,
     episode = 1
     if os.path.isfile(ckp_path):
         episode, score = agent.resume_from_checkpoint(ckp_path, device)
-        print('Resuming training from checkpoint %s - Episode: %d - Score: %d' 
-                % (ckp_path, episode, score))
+        print('Resuming training from checkpoint %s - Episode: %d - Score: %d'
+              % (ckp_path, episode, score))
         logger.info('Resuming training from checkpoint  {}\tAverage Score: {:.2f}\tEpisode: {:.2f}'
-                        .format(ckp_path, score, episode))
+                     .format(ckp_path, score, episode))
 
     # initialize epsilon
     for i_episode in range(episode, n_episodes+1):
         state = pf.stack_frames(None, env.reset(), True)
         print('Starting episode: %i' % i_episode)
         logger.info('Starting episode: %i' % i_episode)
+        score = 0
         for t in range(max_t):
-            logger.debug('Step %i of episode %i' % (t, i_episode))
             action = agent.act(state, eps)
             next_state, reward, done, info = env.step(action)
             next_state = pf.stack_frames(state, next_state, False)
@@ -83,7 +83,7 @@ def cnn_dqn(env, dir_path, file_name, n_episodes=2000,
         writer.add_scalar('Max score last 100 episodes', np.max(scores_window),
                           i_episode)
 
-        if i_episode % 10 == 0:
+        if i_episode % 100 == 0:
             print('\rEpisode {}\tAverage Score: {:.2f}'
                   .format(i_episode, np.mean(scores_window)))
             logger.info('Episode {}\tAverage Score: {:.2f}'
@@ -91,9 +91,9 @@ def cnn_dqn(env, dir_path, file_name, n_episodes=2000,
             agent.save_checkpoint(i_episode, np.mean(scores_window), ckp_path)
             file_name_ = os.path.join(dir_path,
                                       'dqn_atari_space_{}_{}.pth'.format(i_episode, np.mean(scores_window)))
-            agent.save_checkpoint(i_episode, file_name_)
+            agent.save_checkpoint(i_episode, np.mean(scores_window),file_name_)
 
-        if np.mean(scores_window) >= 850.0:
+        if np.mean(scores_window) >= 15000.0:
             print('\nEnvironment solved in {:d} episodes!\t \
                   Average Score: {:.2f}'.format(i_episode-100,
                                                 np.mean(scores_window)))

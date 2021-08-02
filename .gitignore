@@ -4784,3 +4784,9 @@ dqn-atari/roms/ROMS/Zaxxon (1983) (CBS Electronics) (4L1784, 4L1786, 4L1787, 4L2
 dqn-atari/roms/ROMS/Zaxxon (1983) (Coleco) (2454) ~.bin
 dqn-atari/roms/ROMS/Zoo Fun (AKA Panda Chase) (1983) (Suntek) (SS-027) (PAL).bin
 dqn-atari/roms/ROMS/Zoo Keeper Sounds (1984) (Atari, Christopher H. Omarzu, Robert Vieira) (CX26121) (Prototype) ~.bin
+dqn-atari/gym_animation_1200_episodes_3.gif
+*.gif
+*.pth
+*.pth
+*.gif
+dqn-atari/checkpoint_visual_atari.pth
