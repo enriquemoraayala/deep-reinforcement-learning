@@ -136,8 +136,32 @@ class Agent():
             target_param.data.copy_(tau * local_param.data +
                                     (1.0 - tau) * target_param.data)
 
-    def load_from_checkpoint(self, local_path):
-        self.qnetwork_local.load_state_dict(torch.load(local_path))
+    def load_from_checkpoint(self, local_path, device):
+        self.qnetwork_local.load_state_dict(torch.load(local_path,
+                                            map_location=device))
+
+    def resume_from_checkpoint(self, local_path, device):
+        checkpoint = torch.load(local_path, map_location=device)
+        self.qnetwork_local.load_state_dict(checkpoint['model_state_dict'])
+        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        episode = checkpoint['epoch']
+        score = checkpoint['score']
+        self.loss = checkpoint['loss']
+        self.qnetwork_local.train()
+        self.soft_update(self.qnetwork_local,
+                         self.qnetwork_target, TAU)
+        
+        return episode, score
+
+    def save_checkpoint(self, episode, score, path):
+        torch.save({
+            'epoch': episode,
+            't_step': self.t_step,
+            'model_state_dict': self.qnetwork_local.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'loss': self.loss,
+            'score': score
+            }, path)
 
 
 class ReplayBuffer:

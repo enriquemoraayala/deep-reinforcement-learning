@@ -3,11 +3,11 @@ import logging
 # import watchtower
 
 logger = logging.getLogger('DQN Visual Agent - v02')
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 # create file handler which logs even debug messages
 fh = logging.FileHandler('dqn_visual_training.log')
 # logger.addHandler(watchtower.CloudWatchLogHandler())
-fh.setLevel(logging.DEBUG)
+fh.setLevel(logging.INFO)
 formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)

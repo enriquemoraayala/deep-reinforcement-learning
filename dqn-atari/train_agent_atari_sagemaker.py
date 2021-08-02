@@ -14,7 +14,7 @@ from torch.utils.tensorboard import SummaryWriter
 writer = SummaryWriter('/opt/ml/output/tensorboard/')
 
 
-def cnn_dqn(env, ckp_path, n_episodes=2000,
+def cnn_dqn(env, dir_path, file_name, n_episodes=2000,
             max_t=1000,
             eps_start=1.0, eps_end=0.01, eps_decay=0.995):
     """Deep Q-Learning.
@@ -28,6 +28,7 @@ def cnn_dqn(env, ckp_path, n_episodes=2000,
         eps_decay (float): multiplicative factor (per episode)
         for decreasing epsilon
     """
+    ckp_path = os.path.join(dir_path, file_name)
     scores = []
     scores_window = deque(maxlen=100)  # last 100 scores
     state = pf.stack_frames(None, env.reset(), True)
@@ -36,20 +37,31 @@ def cnn_dqn(env, ckp_path, n_episodes=2000,
     action0 = 0  # do nothing
     observation0, reward0, terminal, info = env.step(action0)
     print("Before processing: " + str(np.array(observation0).shape))
-    # plt.imshow(np.array(observation0))
-    # plt.show()
     observation0 = pf.preprocess_frame(observation0, (8, -12, -12, 4), 84)
     print("After processing: " + str(np.array(observation0).shape))
-    # plt.imshow(np.array(np.squeeze(observation0)), cmap='gray')
-    # plt.show()
     action_size = env.action_space.n
+    print('Action size: %i' % action_size)
+    logger.info('Action size: %i' % action_size)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     agent = Agent(action_size, seed=0)
+    # reasuming job in dummy way
+    score = 0
+    episode = 1
+    if os.path.isfile(ckp_path):
+        episode, score = agent.resume_from_checkpoint(ckp_path, device)
+        print('Resuming training from checkpoint %s - Episode: %d - Score: %d' 
+                % (ckp_path, episode, score))
+        logger.info('Resuming training from checkpoint  {}\tAverage Score: {:.2f}\tEpisode: {:.2f}'
+                        .format(ckp_path, score, episode))
 
     # initialize epsilon
-    for i_episode in range(1, n_episodes+1):
+    for i_episode in range(episode, n_episodes+1):
         state = pf.stack_frames(None, env.reset(), True)
-        score = 0
+        print('Starting episode: %i' % i_episode)
+        logger.info('Starting episode: %i' % i_episode)
         for t in range(max_t):
+            logger.debug('Step %i of episode %i' % (t, i_episode))
             action = agent.act(state, eps)
             next_state, reward, done, info = env.step(action)
             next_state = pf.stack_frames(state, next_state, False)
@@ -58,7 +70,7 @@ def cnn_dqn(env, ckp_path, n_episodes=2000,
             score += reward
             if done:
                 break
- 
+
         scores_window.append(score)        # save most recent score
         scores.append(score)               # save most recent score
         eps = max(eps_end, eps_decay*eps)  # decrease epsilon
@@ -71,19 +83,24 @@ def cnn_dqn(env, ckp_path, n_episodes=2000,
         writer.add_scalar('Max score last 100 episodes', np.max(scores_window),
                           i_episode)
 
-        if i_episode % 100 == 0:
+        if i_episode % 10 == 0:
             print('\rEpisode {}\tAverage Score: {:.2f}'
                   .format(i_episode, np.mean(scores_window)))
             logger.info('Episode {}\tAverage Score: {:.2f}'
                         .format(i_episode, np.mean(scores_window)))
-            torch.save(agent.qnetwork_local.state_dict(), ckp_path)
-        if np.mean(scores_window) >= 450.0:
+            agent.save_checkpoint(i_episode, np.mean(scores_window), ckp_path)
+            file_name_ = os.path.join(dir_path,
+                                      'dqn_atari_space_{}_{}.pth'.format(i_episode, np.mean(scores_window)))
+            agent.save_checkpoint(i_episode, file_name_)
+
+        if np.mean(scores_window) >= 850.0:
             print('\nEnvironment solved in {:d} episodes!\t \
                   Average Score: {:.2f}'.format(i_episode-100,
                                                 np.mean(scores_window)))
-            torch.save(agent.qnetwork_local.state_dict(), ckp_path)
+            agent.save_checkpoint(i_episode, np.mean(scores_window), ckp_path)
             break
     return scores
+
 
 
 def train_agent(args_sagemaker):
@@ -94,9 +111,8 @@ def train_agent(args_sagemaker):
     print(env.action_space)
     print(env.observation_space)
     print(env.env.get_action_meanings())
-    scores = cnn_dqn(env, os.path.join(
-                                  args_sagemaker.checkpoint_path,
-                                  'checkpoint_visual_atari.pth'))
+    scores = cnn_dqn(env, args_sagemaker.checkpoint_path,
+                     'checkpoint_visual_atari.pth')
     return scores
 
 

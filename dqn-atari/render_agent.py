@@ -1,12 +1,12 @@
 import gym
-import time
+import torch
 import process_frames as pf
 import matplotlib.pyplot as plt
 from matplotlib import animation
 from visual_dqn_agent import Agent
 
 
-def save_frames_as_gif(frames, path='./', filename='gym_animation.gif'):
+def save_frames_as_gif(frames, path='./', filename='gym_animation_1200_episodes.gif'):
 
     # Mess with this to change frame size
     plt.figure(figsize=(frames[0].shape[1] / 72.0, frames[0].shape[0] / 72.0), dpi=72)
@@ -25,7 +25,8 @@ def render_agent(model_path):
     env = init_env()
     action_size = env.action_space.n
     agent = Agent(action_size, seed=0)
-    agent.load_from_checkpoint(model_path)
+    device = torch.device('cpu')
+    agent.load_from_checkpoint(model_path, device)
     score = 0
     state = pf.stack_frames(None, env.reset(), True)
     frames = []
