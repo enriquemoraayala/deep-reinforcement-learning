@@ -53,6 +53,7 @@ class Agent():
         # Initialize time step (for updating every UPDATE_EVERY steps)
         self.t_step = 0
 
+
     def step(self, state, action, reward, next_state, done):
         # Save experience in replay memory
         # save state in the original format
@@ -112,6 +113,7 @@ class Agent():
 
         # Compute loss
         loss = F.mse_loss(Q_expected, Q_targets)
+        
         # Minimize the loss
         self.optimizer.zero_grad()
         loss.backward()
@@ -146,7 +148,7 @@ class Agent():
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         episode = checkpoint['epoch']
         score = checkpoint['score']
-        self.loss = checkpoint['loss']
+        # self.loss = checkpoint['loss']
         self.qnetwork_local.train()
         self.soft_update(self.qnetwork_local,
                          self.qnetwork_target, TAU)
@@ -159,7 +161,6 @@ class Agent():
             't_step': self.t_step,
             'model_state_dict': self.qnetwork_local.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
-            'loss': self.loss,
             'score': score
             }, path)
 
