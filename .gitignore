@@ -4792,3 +4792,6 @@ dqn-atari/gym_animation_1200_episodes_3.gif
 dqn-atari/checkpoint_visual_atari.pth
 *.pth
 *.gif
+*.pth
+*.gif
+*.code-workspace
