@@ -5,6 +5,10 @@
 		},
 		{
 			"path": "../../../deep-reinforcement-learning"
+		},
+		{
+			"name": "rl-waf",
+			"path": "../../../rl-waf"
 		}
 	],
 	"settings": {}
