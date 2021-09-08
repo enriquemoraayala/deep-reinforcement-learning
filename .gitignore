@@ -4795,3 +4795,6 @@ dqn-atari/checkpoint_visual_atari.pth
 *.pth
 *.gif
 *.code-workspace
+.vscode/launch.json
+.ipynb_checkpoints/Continuous_Control-checkpoint.ipynb
+*.dylib
