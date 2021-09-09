@@ -3,7 +3,8 @@ import random
 import copy
 from collections import namedtuple, deque
 
-from model import Actor, Critic
+# from model import Actor, Critic
+from ddpg_model_v3 import Actor, Critic
 
 import torch
 import torch.nn.functional as F
@@ -56,7 +57,7 @@ class Agent():
         self.critic_optimizer = optim.Adam(self.critic_local.parameters(),
                                            lr=LR_CRITIC,
                                            weight_decay=WEIGHT_DECAY)
-        print('Critic model initializated! Actor model summary:')
+        print('Critic model initializated! Critic model summary:')
         print(self.critic_local)
 
         # Noise process

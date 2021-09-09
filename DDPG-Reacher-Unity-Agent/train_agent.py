@@ -4,6 +4,7 @@ import gym
 import random
 import torch
 import numpy as np
+import os
 import matplotlib.pyplot as plt
 from collections import deque
 from ddpg_agent import Agent
@@ -16,7 +17,7 @@ LIN_EPS_DECAY = 1e-6
 
 
 def ddpg(env, ckp_path, n_episodes=1000, max_t=1000,
-         print_every=10, save_every=10):
+         print_every=10, save_every=100):
 
     # agent_number
     agent_number = 0
@@ -48,16 +49,23 @@ def ddpg(env, ckp_path, n_episodes=1000, max_t=1000,
     agent = Agent(state_size, action_size,
                   random_seed, writer)
 
+    if ckp_path != '':
+        load_model(agent.actor_local, ckp_path, 'checkpoint_actor.pth')
+        print('Actor model loaded from %s ' % ckp_path)
+        load_model(agent.critic_local, ckp_path, 'checkpoint_critic.pth')
+        print('Critic model loaded from %s ' % ckp_path)
+
     scores_deque = deque(maxlen=100)
     scores = []
     eps = EPS_START
+    best_score = 0.0
     for i_episode in range(1, n_episodes+1):
         # state = env.reset()
         env_info = env.reset(train_mode=True)[brain_name]
         state = env_info.vector_observations[0]
         agent.reset()
         # score = np.zeros(1)
-        score = 0
+        score = 0.0
         for t in range(max_t+1):
             action = agent.act(state, eps)
             # next_state, reward, done, _ = env.step(action)
@@ -71,7 +79,7 @@ def ddpg(env, ckp_path, n_episodes=1000, max_t=1000,
             eps = eps - LIN_EPS_DECAY
             eps = np.maximum(eps, EPS_END)
 
-            if np.any(done):
+            if done:
                 break
 
         scores_deque.append(score)
@@ -82,11 +90,13 @@ def ddpg(env, ckp_path, n_episodes=1000, max_t=1000,
         writer.add_scalar('reward', score)
         writer.add_scalar('total avg reward', np.mean(scores))
 
-        if i_episode % save_every == 0:
-            torch.save(agent.actor_local.state_dict(),
-                       'checkpoint_actor.pth')
-            torch.save(agent.critic_local.state_dict(),
-                       'checkpoint_critic.pth')
+        if score > best_score:
+            best_score = score
+            if i_episode > 30:
+                torch.save(agent.actor_local.state_dict(),
+                           'checkpoint_actor.pth')
+                torch.save(agent.critic_local.state_dict(),
+                           'checkpoint_critic.pth')
 
         if i_episode % print_every == 0:
             print('\rEpisode {}\tAverage Score: {:.2f}'
@@ -104,8 +114,15 @@ def ddpg(env, ckp_path, n_episodes=1000, max_t=1000,
     return scores
 
 
+def load_model(model, path, model_name):
+    model.load_state_dict(torch.load(os.path.join(path, model_name)))
+
+
 def train_agent(env_path):
     env = UnityEnvironment(file_name=env_path)
+    # scores = ddpg(env, '/Users/ESMoraEn/repositories/'
+    #                    'emoraa-deep-reinforcement-learning/'
+    #                    'DDPG-Reacher-Unity-Agent')
     scores = ddpg(env, '')
     return scores
 
