@@ -2,7 +2,7 @@
 
 DDPG agent for the Unity Reacher environment, one single agent version.
 
-!['One single arm problem. DDPG agent solved'](./figures/ddpg_agent_solved.gif)
+!['One single arm problem. DDPG agent solved'](https://media.giphy.com/media/W1BmWrC2iYe6GVMvpx/giphy.gif?cid=790b76119d0c293b5fa6672afdf613e01fb943f1fe79831f&rid=giphy.gif&ct=g)
 
 ## Project Details
 

@@ -1,11 +1,11 @@
-# Problem 2, continous control submision report
+# Problem 2, continous control submission report
 
 ## Code Structure
 
 At the root level of the repository, please, find the markdown files readme that will help you to install the environment.
 In this report, we'll explain how the problem has been solved.
 
-**Importan note: the github does not contain the Unity environment binaries!!! Please, see the readme file to see how to download it.**
+Importan note: the github does not contain the Unity environment binaries!!! Please, see the readme file to see how to download it.
 
 we can also find some assets for the readme.
 
@@ -18,17 +18,21 @@ The root level also contains all the python files to code the agent and the rest
     - train_agent.py does the training of the DDPG agent. It saves two different checkpoints during the training, the best one and the solved one. The script saves all the scores and losses using tensorboard, which is a requirement
     
     - test_agent.py is able to load a previously saved agent and test it (showing results in the terminal), saving the performance figures and showing the agent in the environment if the local system allows it.
+...
 
 ## Learning Algorithm
 
-    The selecte algorithm was DDPG  with its replay buffer and fixed Q Targets for actor and critic networks as the algo requires.
+...
+The selecte algorithm was DDPG  with its replay buffer and fixed Q Targets for actor and critic networks as the algo requires.
 
-    Ornstein–Uhlenbeck process is used as a noise generator combined with 
-    a linear epsilon greedy exploration/exploitation as the way to explore the state space.
+Ornstein–Uhlenbeck process is used as a noise generator combined with a linear epsilon greedy exploration/exploitation as the way to explore the state space.
 
-    Soft Updates of the Actor and Critic models has been implemented as well
+Soft Updates of the Actor and Critic models has been implemented as well
+...
 
-   **Highlevel pseudo-code of the algorithm**
+### Highlevel pseudo-code of the algorithm
+
+...
    Init random weights for critic and actor.
    Clone weights to generate target critic and target actor.
    Init replay memory
@@ -54,10 +58,9 @@ The root level also contains all the python files to code the agent and the rest
                 update actor policy using policy gradient
                 Every C steps update Qtarget weights using Qvalues and tau for the soft-update
 
-    **Hyperparameters**
+### Hyperparameters
 
     ```python
-        
         EPS_START = 1.0         # Initial epsilon value (explore)
         EPS_END = 0.1           # Last epsilon value  (exploit)
         LIN_EPS_DECAY = 1e-6    # Noise decay rate
@@ -70,11 +73,12 @@ The root level also contains all the python files to code the agent and the rest
         WEIGHT_DECAY = 0        # L2 weight decay
         UPDATE_EVERY = 20       # skip some learn steps
     ```
-    **Neural Networks**
 
-    We have actor network, critic network and their target clones.
-     
-    The architecture is quite simple, multi-layer perceptron but decreasing layer after layer the number of neurons. Input layer matches the state size then we have 3 hidden fully connected layers and finaly the output layer.
+### Neural Networks
+
+We have actor network, critic network and their target clones.
+
+The architecture is quite simple, multi-layer perceptron but decreasing layer after layer the number of neurons. Input layer matches the state size then we have 3 hidden fully connected layers and finaly the output layer.
 
     ```python
     Actor model initializated! Actor model summary:
