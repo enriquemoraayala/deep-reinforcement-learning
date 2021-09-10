@@ -2,7 +2,7 @@
 
 DDPG agent for the Unity Reacher environment, one single agent version.
 
-!['One single arm problem'](https://media.giphy.com/media/doeuwYIlGFE50GS6Hq/giphy.gif)
+!['One single arm problem. DDPG agent solved'](./figures/ddpg_agent_solved.gif)
 
 ## Project Details
 
@@ -21,7 +21,7 @@ Clone the repository
 
 Navigate to the root of the project:
 
-`cd`
+`cd DDPG-Reacher-Unity-Agent`
 
 Install required python packages using pip or conda, for a quick basic setup use:
 
@@ -42,8 +42,8 @@ You can run the project from some Editor like VS code or directly from commandli
 
 This will train the agent and will store 2 versions of model weights. One when it pass the environment solved condition and other after the training episodes.
 
-it stores the model in actor_trained_model.pth and critic_trained_model.pth on the root of the project.
+it stores the model in solved_actor_trained_model.pth and solved_critic_trained_model.pth on the root of the project.
 
 Once the model is trained you can check its behavior by testing it:
 
-`python test_agent.py <<model_path>>`
+`python test_agent.py -c <<checkpoint_directory_path>> -e <<complete_environment_path>>`

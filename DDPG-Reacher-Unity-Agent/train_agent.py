@@ -6,6 +6,7 @@ import torch
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+import pickle
 from collections import deque
 from ddpg_agent import Agent
 from torch.utils.tensorboard import SummaryWriter
@@ -16,7 +17,7 @@ EPS_END = 0.1
 LIN_EPS_DECAY = 1e-6
 
 
-def ddpg(env, ckp_path, n_episodes=1000, max_t=1000,
+def ddpg(env, ckp_path, n_episodes=1200, max_t=1200,
          print_every=10, save_every=100):
 
     # agent_number
@@ -50,10 +51,17 @@ def ddpg(env, ckp_path, n_episodes=1000, max_t=1000,
                   random_seed, writer)
 
     if ckp_path != '':
-        load_model(agent.actor_local, ckp_path, 'checkpoint_actor.pth')
-        print('Actor model loaded from %s ' % ckp_path)
-        load_model(agent.critic_local, ckp_path, 'checkpoint_critic.pth')
-        print('Critic model loaded from %s ' % ckp_path)
+        try:
+            print('Resuming training')
+            load_model(agent.actor_local, ckp_path, 'checkpoint_actor.pth')
+            print('Actor model loaded from %s ' % ckp_path)
+            load_model(agent.critic_local, ckp_path, 'checkpoint_critic.pth')
+            print('Critic model loaded from %s ' % ckp_path)
+            with open('buffer_reply.pkl', 'rb') as handle:
+                agent.memory = pickle.load(handle)
+        except Exception:
+            print('Unable to load models / reply_buffer')
+            return
 
     scores_deque = deque(maxlen=100)
     scores = []
@@ -97,6 +105,9 @@ def ddpg(env, ckp_path, n_episodes=1000, max_t=1000,
                            'checkpoint_actor.pth')
                 torch.save(agent.critic_local.state_dict(),
                            'checkpoint_critic.pth')
+                with open('buffer_reply.pkl', 'wb') as handle:
+                    pickle.dump(agent.memory.memory, handle,
+                                protocol=pickle.HIGHEST_PROTOCOL)
 
         if i_episode % print_every == 0:
             print('\rEpisode {}\tAverage Score: {:.2f}'

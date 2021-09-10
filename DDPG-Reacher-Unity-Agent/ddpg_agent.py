@@ -4,7 +4,7 @@ import copy
 from collections import namedtuple, deque
 
 # from model import Actor, Critic
-from ddpg_model_v3 import Actor, Critic
+from ddpg_model import Actor, Critic
 
 import torch
 import torch.nn.functional as F

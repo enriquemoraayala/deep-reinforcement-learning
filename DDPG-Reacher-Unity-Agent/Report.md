@@ -15,7 +15,7 @@ The root level also contains all the python files to code the agent and the rest
 
     - ddpg_agent.py Contains the core of the project, where we use the previously defined torch models to learn from the experiences. This code is based in the prevoius exercices of the module
 
-    - train_agent.py does the training of the DDPG agent. It saves two different checkpoints during the training, the best one and the solved one.
+    - train_agent.py does the training of the DDPG agent. It saves two different checkpoints during the training, the best one and the solved one. The script saves all the scores and losses using tensorboard, which is a requirement
     
     - test_agent.py is able to load a previously saved agent and test it (showing results in the terminal), saving the performance figures and showing the agent in the environment if the local system allows it.
 
@@ -56,7 +56,9 @@ The root level also contains all the python files to code the agent and the rest
 
     **Hyperparameters**
 
-        EPS_START = 1.0         # Initial epsilon value (explore) 
+    ```python
+        
+        EPS_START = 1.0         # Initial epsilon value (explore)
         EPS_END = 0.1           # Last epsilon value  (exploit)
         LIN_EPS_DECAY = 1e-6    # Noise decay rate
         BUFFER_SIZE = int(1e6)  # replay buffer size
@@ -67,23 +69,40 @@ The root level also contains all the python files to code the agent and the rest
         LR_CRITIC = 1e-3        # learning rate of the critic
         WEIGHT_DECAY = 0        # L2 weight decay
         UPDATE_EVERY = 20       # skip some learn steps
-    
+    ```
     **Neural Networks**
 
     We have actor network, critic network and their target clones.
      
-    The architecture is quite simple, multi-layer perceptron. Input layer matches the state size then we have 3 hidden fully connected layers and finaly the output layer.
+    The architecture is quite simple, multi-layer perceptron but decreasing layer after layer the number of neurons. Input layer matches the state size then we have 3 hidden fully connected layers and finaly the output layer.
 
-   Each network has the implementation details mention in paper and course regarding weight initialization and action concatenation.
+    ```python
+    Actor model initializated! Actor model summary:
+    Actor(
+    (fc1): Linear(in_features=33, out_features=256, bias=True)
+    (fc2): Linear(in_features=256, out_features=128, bias=True)
+    (fc3): Linear(in_features=128, out_features=64, bias=True)
+    (fc4): Linear(in_features=64, out_features=4, bias=True)
+    )
+    Critic model initializated! Critic model summary:
+    Critic(
+    (fcs1): Linear(in_features=33, out_features=256, bias=True)
+    (fc2): Linear(in_features=260, out_features=128, bias=True)
+    (fc3): Linear(in_features=128, out_features=64, bias=True)
+    (fc4): Linear(in_features=64, out_features=1, bias=True)
+    )
+    ```
+
+   Each network has the implementation details mention in paper and course regarding weight initialization, action concatenation and soft-updates during the training.
 
 ## Plot of Rewards
 
-!['Plots of the rewards'](reward_plot.png)
+!['Plots of the rewards'](./figures/scores_training.png)
 
-The environment gets solved around 700 episodes with the specified Hyperparameters as the plot reflects.
+The environment gets solved around 900 episodes with the specified Hyperparameters as the plot reflects.
 
 ## Ideas for Future Work
 
-To improve the agent's performance we could do hyperparameter optimization using some framework like Optuna to make the model converge faster or even collect better experiences for its learning process. We can think about searching for a better value of each of the config.py values or also tune the neural networks. More layers, More units.
+The agent needs a lot of episodes to solve the problem. Probably anothe network topology could work better. Implementing the Option 2: 20 agents would help as well to allow the model to converge faster due to parallel learning.
 
-We can also use DQN related improvements like prioritized experienced replay.
+Other approaches like D4PG would solve the problem faster.

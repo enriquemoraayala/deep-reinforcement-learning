@@ -1,3 +1,4 @@
 torch==1.9.0
 numpy
 unityagents
+tensorboard=2.3.0
