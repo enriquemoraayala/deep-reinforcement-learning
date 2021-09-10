@@ -7,6 +7,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 import pickle
+import argparse
 from collections import deque
 from ddpg_agent import Agent
 from torch.utils.tensorboard import SummaryWriter
@@ -140,6 +141,14 @@ def train_agent(env_path):
 
 if __name__ == '__main__':
 
-    env_path = '/Users/ESMoraEn/repositories/emoraa-deep-reinforcement-' + \
-             'learning/DDPG-Reacher-Unity-Agent/Reacher.app'
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-e", "--env_path",
+                        help="Complete path to the Reacher Environment",
+                        type=str, default='./Reacher.app')
+
+    args = parser.parse_args()
+
+    # env_path = '/Users/ESMoraEn/repositories/emoraa-deep-reinforcement-' + \
+    #         'learning/DDPG-Reacher-Unity-Agent/Reacher.app'
+    env_path = args.e
     train_agent(env_path)

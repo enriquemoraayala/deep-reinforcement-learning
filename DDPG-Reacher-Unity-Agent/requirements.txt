@@ -1,4 +1,6 @@
 torch==1.9.0
 numpy
 unityagents
+pickle
+argparse
 tensorboard=2.3.0
