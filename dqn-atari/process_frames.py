@@ -46,6 +46,8 @@ def stack_frame(stacked_frames, frame, is_new):
 
 
 def stack_frames(frames, state, is_new=False):
+    # env.reset() returns a ObservationSpace object
+    # we need a numpy array
     frame = preprocess_frame(state, (8, -12, -12, 4), 84)
     frames = stack_frame(frames, frame, is_new)
 

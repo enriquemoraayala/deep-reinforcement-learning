@@ -13,7 +13,7 @@ BUFFER_SIZE = int(1e5)  # replay buffer size
 BATCH_SIZE = 64         # minibatch size
 GAMMA = 0.99            # discount factor
 TAU = 1e-3              # for soft update of target parameters
-LR = 5e-4               # learning rate
+LR = 1e-4               # learning rate
 UPDATE_EVERY = 4        # how often to update the network
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -217,3 +217,39 @@ class ReplayBuffer:
     def __len__(self):
         """Return the current size of internal memory."""
         return len(self.memory)
+
+
+class RandomAgent():
+    """Interacts with and learns from the environment."""
+
+    def __init__(self, action_size, seed):
+        """Initialize an Agent object.
+        Params
+        ======
+            state_size (int): dimension of each state
+            action_size (int): dimension of each action
+            seed (int): random seed
+        """
+        self.action_size = action_size
+        self.seed = random.seed(seed)
+        self.preprocess = transforms.Compose([
+                                     transforms.ToTensor()])
+        self.t_step = 0
+
+
+    def step(self, state, action, reward, next_state, done):
+        # RandomAgent will not learn, just random policy
+        pass
+
+    def act(self, state, eps=0.):
+        """Returns actions for given state as per current policy.
+
+        Params
+        ======
+            state (array_like): current state
+            eps (float): epsilon, for epsilon-greedy action selection
+        """
+        return random.choice(np.arange(self.action_size))
+
+    def learn(self, experiences, gamma):
+       pass
