@@ -1,9 +1,11 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.nn.functional as nnf
 
 import random
 import numpy as np
+import math
 from collections import namedtuple, deque
 from dqn_model_lunarlander import QNet
 
@@ -45,6 +47,18 @@ class Agent():
             action = np.argmax(action_values.cpu().data.numpy())
 
         return action
+    
+    def getProbs(self, state, action):
+        state = torch.from_numpy(state).float().unsqueeze(0).to(device)
+
+        self.net_eval.eval()
+        with torch.no_grad():
+            action_values = self.net_eval(state)
+            probs = nnf.softmax(action_values, dim=1)
+            prob_ = probs[0][action].item()
+            logp_ = math.log(prob_)
+
+        return prob_, logp_
 
     def save2memory(self, state, action, reward, next_state, done):
         self.memory.add(state, action, reward, next_state, done)
