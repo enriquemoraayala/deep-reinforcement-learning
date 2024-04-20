@@ -58,7 +58,7 @@ def main(args):
                "episode_reward_max", "episode_len_mean", "filename"]
     df_results = pd.DataFrame(columns=columns)
     lengths = []
-    for n in range(10):
+    for n in range(50):
         result = trainer.train()
         if n % 5 == 0:
             print(pretty_print(result))

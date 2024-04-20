@@ -15,6 +15,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from ray.rllib.evaluation.sample_batch_builder import SampleBatchBuilder
 from ray.rllib.offline.json_writer import JsonWriter
+from ray.rllib.algorithms.algorithm import Algorithm
 
 def TextOnImg(img, score):
     img = Image.fromarray(img)
@@ -29,7 +30,7 @@ def save_frames_as_gif(frames, path_filename):
 
     print("Done!")
 
-def gym2gif(env, agent, filename="gym_animation", total_ep=3, max_steps=0):
+def gym2gif(args, env, agent, filename="gym_animation", total_ep=3, max_steps=0):
     frames = []
     scores = []
     steps = []
@@ -43,7 +44,12 @@ def gym2gif(env, agent, filename="gym_animation", total_ep=3, max_steps=0):
         for idx_step in range(max_steps):
             frame = env.render()
             frames.append(TextOnImg(frame, score))
-            action = agent.getAction(state, epsilon=0)
+            if args.agent_type == 'random':
+                action = env.action_space.sample()
+            elif args.agent_type == 'dqn':
+                action = agent.getAction(state, epsilon=0)
+            elif args.agent_type == 'ppo_rllib':
+                action = agent.compute_single_action(state)
             state, reward, done, _, _ = env.step(action)
             score += reward
             if done:
@@ -67,7 +73,7 @@ def generate_episodes(args, env, agent):
     steps = []
     for i in range(int(args.total_episodes)):
         state = env.reset()
-        # after reset, state is diferent from env.step()
+        # after reset, state is diferent from env.step() - gymnasium
         state = state[0]
         score = 0
         prev_action = 0
@@ -77,7 +83,10 @@ def generate_episodes(args, env, agent):
         else:
             max_steps = int(args.max_ep)
         for idx_step in range(max_steps):
-            action = agent.getAction(state, epsilon=0)
+            if args.agent_type == 'random':
+                action = env.action_space.sample()
+            else:
+                action = agent.getAction(state, epsilon=0)
             prob, logp = agent.getProbs(state, action)
             next_state, reward, done, _, _ = env.step(action)
             score += reward
@@ -115,10 +124,12 @@ def render_agent(args):
     if args.agent_type == 'dqn':
         agent = Agent(num_states, num_actions)
         agent.load_from_checkpoint(args.model_checkpoint_path, device)
-    else:
+    elif args.agent_type == 'ppo_rllib':
+        agent = Algorithm.from_checkpoint(args.model_checkpoint_path)
+    elif args.agent_type == 'random':
         agent = RandomAgent(num_actions, 1234)
     if args.render == 'yes':
-        scores, steps = gym2gif(env, agent, filename=args.output, total_ep=int(args.total_episodes), max_steps=int(args.max_ep))
+        scores, steps = gym2gif(args, env, agent, filename=args.output, total_ep=int(args.total_episodes), max_steps=int(args.max_ep))
     else:
         scores, steps = generate_episodes(args, env, agent)
     for i in range(len(scores)):
@@ -131,14 +142,15 @@ if __name__ == '__main__':
     parser.add_argument("--env", type=str,
                         help="Path to configuration file of the envionment.",
                         default='LunarLander-v2')
-    parser.add_argument("--agent_type", help = "dqn/random", default="dqn")
+    parser.add_argument("--agent_type", help = "dqn/random/ppo_rllib", default="random")
     parser.add_argument("--render", help = "yes/no", default="no")
     parser.add_argument("--max_ep", help = "0/max_ep", default="200")
-    parser.add_argument("--total_episodes", help = "", default="50")
-    parser.add_argument("--output", help = "path", default="./results/gym_lunar_dqn_150424_150steps.gif")
+    parser.add_argument("--total_episodes", help = "", default="1000")
+    parser.add_argument("--output", help = "path", default="./results/gym_lunar_random.gif")
     parser.add_argument("--model_checkpoint_path", type=str,
                         help="Path to the model checkpoint",
-                        default='./checkpoints/checkpoint_lunar_dqn_150424.pth'
+                        # default='./checkpoints/checkpoint_lunar_dqn_150424.pth'
+                        default='/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/checkpoints/200420240756/ckpt_ppo_agent_torch_lunar_lander'
                         )
     parser.add_argument("--output_episodes", type=str,
                         help="Path to the model checkpoint",

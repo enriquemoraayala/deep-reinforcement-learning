@@ -152,3 +152,8 @@ class RandomAgent():
 
     def learn(self, experiences, gamma):
        pass
+
+    def getProbs(self, state, action):
+        prob_ = 1./self.action_size
+        logp_ = math.log(prob_)
+        return prob_, logp_
