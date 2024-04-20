@@ -3,11 +3,13 @@ import json
 import os
 import pandas as pd
 import ray
+import gymnasium as gym
 
-from ray.rllib.agents.ppo import PPOTrainer
-from ray.rllib.algorithms.dqn.dqn import DQN, DEFAULT_CONFIG
+# from ray.rllib.agents.ppo import PPOTrainer
+# from ray.rllib.algorithms.dqn.dqn import DQN
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.algorithms.dqn import DQNConfig
+from ray.rllib.algorithms import ppo
 from ray.tune.registry import register_env
 from ray.tune.logger import pretty_print
 from datetime import datetime
@@ -28,16 +30,28 @@ def main(args):
     # tf.compat.v1.enable_eager_execution()
     ray.init(local_mode=args.local_mode)
     # run = Run.get_context(allow_offline=True)
-
+    env = gym.make("LunarLander-v2")
     config = {'gamma': 0.999,
               'lr': 0.0001,
               'n_step': 1000,
               'num_workers': 0,
               'monitor': True,
-              'framework': 'torch'}
+              'framework': 'torch'
+              }
 
-    rllib_config = PPOConfig().environment("LunarLander-v2")
-    trainer = rllib_config.build()
+    # trainer = ppo.PPO(env=env, config={"env_config": config,})
+    trainer = (
+                PPOConfig()
+                .training(gamma=0.999, lr=0.0001)
+                .framework('torch')
+                .rollouts(num_rollout_workers=0)
+                .resources(num_gpus=0)
+                .environment(env="LunarLander-v2")
+                .build()
+            )
+
+    # rllib_config = PPOConfig().from_dict(config)
+    # trainer = rllib_config.build()
     formatted_date = get_file_format()
 
     columns = ["epoch", "episode_reward_min", "episode_reward_mean",
@@ -51,22 +65,22 @@ def main(args):
             if args.agent_type == 'ppo':
                 file_name = trainer.save('checkpoints/' +
                                          formatted_date +
-                                         '/ckpt_ppo_agent_torch_pca')
+                                         '/ckpt_ppo_agent_torch_lunar_lander')
             if args.agent_type == 'dqn':
                 file_name = trainer.save('checkpoints/' +
                                          formatted_date +
-                                         '/ckpt_dqn_agent_torch_pca')
+                                         '/ckpt_dqn_agent_torch_lunar_lander')
         s = "{:3d} reward {:6.2f}/{:6.2f}/{:6.2f} len {:6.2f} saved {}"
         lengths += result["hist_stats"]["episode_lengths"]
         print(s.format(
-            n + 1,
+            n,
             result["episode_reward_min"],
             result["episode_reward_mean"],
             result["episode_reward_max"],
             result["episode_len_mean"],
             file_name
         ))
-        new_result = {"epoch": n + 1,
+        new_result = {"epoch": n,
                       "episode_reward_min": result["episode_reward_min"],
                       "episode_reward_mean": result["episode_reward_mean"],
                       "episode_reward_max": result["episode_reward_max"],
@@ -77,7 +91,7 @@ def main(args):
 
     print(0)
     print(pretty_print(result))
-    df_results.to_csv(f'results/{formatted_date}_{args.agent_type}.csv',
+    df_results.to_csv(f'results/{formatted_date}_{args.agent_type}_lunar_lander.csv',
                       index=False)
 
 
