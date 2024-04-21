@@ -145,7 +145,7 @@ if __name__ == '__main__':
     parser.add_argument("--agent_type", help = "dqn/random/ppo_rllib", default="random")
     parser.add_argument("--render", help = "yes/no", default="no")
     parser.add_argument("--max_ep", help = "0/max_ep", default="200")
-    parser.add_argument("--total_episodes", help = "", default="1000")
+    parser.add_argument("--total_episodes", help = "", default="300")
     parser.add_argument("--output", help = "path", default="./results/gym_lunar_random.gif")
     parser.add_argument("--model_checkpoint_path", type=str,
                         help="Path to the model checkpoint",
