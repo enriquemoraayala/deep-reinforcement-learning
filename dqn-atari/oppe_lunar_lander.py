@@ -46,8 +46,7 @@ def add_expected_reward_to_df(df, total_episodes):
     return df
 
 
-def is_ppo(args, env, eval_policy, df_b, total_episodes_b):
-    J_eps = 150
+def is_ppo(args, env, eval_policy, df_b, total_episodes_b, J_eps):
     print('Computing IS OPPE')
     num_experiments = 10
     batch_size = int(total_episodes_b / num_experiments)
@@ -76,7 +75,7 @@ def is_ppo(args, env, eval_policy, df_b, total_episodes_b):
                 prob_behavior = step['prob']
                 probs.append(prob_.detach().numpy() / prob_behavior)
                 j = int(step['step'])
-            w_episodes.append(np.prod(probs) * df_["exp_reward"].iloc[j-1])
+            w_episodes.append(np.prod(probs) * df_["exp_reward"].iloc[j])
 
         is_oppe = np.array(w_episodes).mean()
         iss_oppe.append(is_oppe)
@@ -88,16 +87,16 @@ def is_ppo(args, env, eval_policy, df_b, total_episodes_b):
         errors.append(error)
 
     avg_is = np.array(iss_oppe).mean()
-    print("Average IS OPPE for %d episodes: %.8f" % (len(total_episodes_b),
+    print("Average IS OPPE for %d episodes: %.8f" % (total_episodes_b,
                                                      avg_is))
     logging.info("Average DM OPPE for %d episodes: %.8f" %
-                 (len(total_episodes_b), avg_is))
+                 (total_episodes_b, avg_is))
     rmse = np.sqrt(np.array(errors).mean())
     std = np.array(errors).std()
     print("RSME IS OPPE for %d Experiments of %d episodes: %.8f" %
-          (num_experiments, len(total_episodes_b), rmse))
+          (num_experiments, total_episodes_b, rmse))
     print("STD IS OPPE for %d Experiments of %d episodes: %.8f" %
-          (num_experiments, len(total_episodes_b), std))
+          (num_experiments, total_episodes_b, std))
 
 
 def load_algo_from_checkpoint(args):
@@ -114,15 +113,28 @@ def load_algo_from_checkpoint(args):
     return evaluation_policy
 
 
+def compute_value_function(agent_type, df):
+    J_eps = 0.0
+    df_ = df.groupby('ep').last()
+    J_eps = df_['exp_reward'].mean()
+    print('Total Real Value function of %s Policy: %.8f' %
+          (agent_type, J_eps))
+    return J_eps
+
 
 def main(args):
     total_episodes_b = int(args.num_beh_episodes)
     env = gym.make("LunarLander-v2")
     eval_policy = load_algo_from_checkpoint(args)
-    df_b = load_json_to_df(args.policy_episodes_path, int(args.num_beh_episodes))
+    df_b = load_json_to_df(args.b_policy_episodes_path, int(args.num_beh_episodes))
     df_b = add_expected_reward_to_df(df_b, total_episodes_b)
+    df_b.to_csv(args.b_policy_episodes_path_output_csv)
     print(df_b[['reward', 'exp_reward']].head())
-    is_ppo(args, env, eval_policy, df_b, total_episodes_b)
+    df_e = load_json_to_df(args.e_policy_episodes_path, int(args.num_eval_episodes))
+    df_e = add_expected_reward_to_df(df_e, int(args.num_eval_episodes))
+    v_function_beh = compute_value_function('Behavioral', df_b)
+    v_function_eval = compute_value_function('Evaluation', df_e)
+    is_ppo(args, env, eval_policy, df_b, total_episodes_b, v_function_eval)
 
 
 if __name__ == '__main__':
@@ -144,9 +156,14 @@ if __name__ == '__main__':
     parser.add_argument("--chechpoint_path",
                         default="./checkpoints/200420240756/ckpt_ppo_agent_torch_lunar_lander")
     parser.add_argument("--random_episodes_path", default="./outputs_random_2")
-    parser.add_argument("--num_beh_episodes", default="1000")
-    parser.add_argument("--policy_episodes_path",
-                        default="./episodes/generated_rllib_random_1000eps_200steps_200424")
+    parser.add_argument("--num_beh_episodes", default="5000")
+    parser.add_argument("--num_eval_episodes", default="500")
+    parser.add_argument("--b_policy_episodes_path",
+                        default="./episodes/generated_rllib_random_5000eps_200steps_030524")
+    parser.add_argument("--e_policy_episodes_path",
+                        default="./episodes/generated_rllib_ppo_rllib_500eps_200steps_030524")
+    parser.add_argument("--b_policy_episodes_path_output_csv",
+                        default="./episodes/generated_rllib_random_5000eps_200steps_030524.csv")
     args = parser.parse_args()
     print(f"Running with following CLI options: {args}")
 

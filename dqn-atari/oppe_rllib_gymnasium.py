@@ -131,11 +131,11 @@ if __name__ == '__main__':
                         help="Init Ray in local mode for easier debugging.")
     parser.add_argument("--agent_type", default="ppo",
                         help="ppo/dqn/random")
-    parser.add_argument("--beh_type", default="random",
+    parser.add_argument("--beh_type", default="ppo_rllib",
                         help="ppo/dqn/random")
     parser.add_argument("--chechpoint_path", default="./checkpoints/200420240756")
-    parser.add_argument("--json_path_train", default="/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/episodes/generated_rllib_random_1000eps_200steps_200424")
-    parser.add_argument("--json_path_eval", default="/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/episodes/generated_rllib_random_300eps_200steps_200424")
+    parser.add_argument("--json_path_train", default="/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/episodes/generated_rllib_ppo_rllib_500eps_200steps_030524")
+    parser.add_argument("--json_path_eval", default="/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/episodes/generated_rllib_ppo_rllib_300eps_200steps_280424")
     args = parser.parse_args()
     print(f"Running with following CLI options: {args}")
     main(args)

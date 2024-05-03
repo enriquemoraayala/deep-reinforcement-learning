@@ -4,8 +4,8 @@ import torch
 import process_frames as pf
 import matplotlib.pyplot as plt
 import argparse
-import pandas as pd
 import numpy as np
+import math
 from dqn_agent import Agent, RandomAgent
 from datetime import datetime
 
@@ -85,9 +85,22 @@ def generate_episodes(args, env, agent):
         for idx_step in range(max_steps):
             if args.agent_type == 'random':
                 action = env.action_space.sample()
-            else:
+                prob, logp = agent.getProbs(state, action)
+            elif args.agent_type == 'dqn':
                 action = agent.getAction(state, epsilon=0)
-            prob, logp = agent.getProbs(state, action)
+                prob, logp = agent.getProbs(state, action)
+            elif args.agent_type == 'ppo_rllib':
+                action = agent.compute_single_action(state)
+                state = torch.from_numpy(np.stack(state))
+                state = torch.unsqueeze(state, 0)
+                policy = agent.get_policy()
+                logits, _ = policy.model({"obs": state})
+                probs_ = torch.nn.Softmax(dim=1)
+                probs_ = probs_(logits)
+                prob = probs_[0][action]
+                prob = prob.detach().numpy()
+                logp = math.log(prob)
+            
             next_state, reward, done, _, _ = env.step(action)
             score += reward
             batch_builder.add_values(
@@ -145,7 +158,7 @@ if __name__ == '__main__':
     parser.add_argument("--agent_type", help = "dqn/random/ppo_rllib", default="random")
     parser.add_argument("--render", help = "yes/no", default="no")
     parser.add_argument("--max_ep", help = "0/max_ep", default="200")
-    parser.add_argument("--total_episodes", help = "", default="300")
+    parser.add_argument("--total_episodes", help = "", default="5000")
     parser.add_argument("--output", help = "path", default="./results/gym_lunar_random.gif")
     parser.add_argument("--model_checkpoint_path", type=str,
                         help="Path to the model checkpoint",
