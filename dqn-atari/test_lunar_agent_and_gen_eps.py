@@ -23,11 +23,11 @@ from ray.rllib.evaluation.sample_batch_builder import SampleBatchBuilder
 from ray.rllib.offline.json_writer import JsonWriter
 from ray.rllib.algorithms.algorithm import Algorithm
 
-def TextOnImg(img, score):
+def TextOnImg(img, score, x=20, y=20):
     img = Image.fromarray(img)
     # font = ImageFont.truetype('/Library/Fonts/arial.ttf', 18)
     draw = ImageDraw.Draw(img)
-    draw.text((20, 20), f"Score={score: .2f}", fill=(255, 255, 255))
+    draw.text((x, y), f"Score={score: .2f}", fill=(255, 255, 255))
     return np.array(img)
 
 def save_frames_as_gif(frames, path_filename):
@@ -49,7 +49,6 @@ def gym2gif(args, env, agent, filename="gym_animation", total_ep=3, max_steps=0)
             max_steps = 1000
         for idx_step in range(max_steps):
             frame = env.render()
-            frames.append(TextOnImg(frame, score))
             if args.agent_type == 'random':
                 action = env.action_space.sample()
             elif args.agent_type == 'dqn':
@@ -58,12 +57,18 @@ def gym2gif(args, env, agent, filename="gym_animation", total_ep=3, max_steps=0)
                 action = agent.compute_single_action(state)
             state, reward, done, _, _ = env.step(action)
             score += reward
+            frames.append(TextOnImg(frame, score))
+            frames.append(TextOnImg(frame, i, 20, 40))
+            if i > 200:
+                pass
             if done:
                 break
         scores.append(score)
         steps.append(idx_step)
+        filename_ = filename + f'_{i}.gif'
+        save_frames_as_gif(frames, path_filename=filename_)
     env.close()
-    save_frames_as_gif(frames, path_filename=filename)
+    
     return scores, steps
 
 
@@ -167,12 +172,12 @@ if __name__ == '__main__':
     parser.add_argument("--env", type=str,
                         help="Path to configuration file of the envionment.",
                         default='LunarLander-v2')
-    parser.add_argument("--agent_type", help = "dqn/random/ppo_rllib", default="random")
-    parser.add_argument("--render", help = "yes/no", default="no")
-    parser.add_argument("--max_ep", help = "0/max_ep", default="200")
+    parser.add_argument("--agent_type", help = "dqn/random/ppo_rllib", default="ppo_rllib")
+    parser.add_argument("--render", help = "yes/no", default="yes")
+    parser.add_argument("--max_ep", help = "0/max_ep", default="0")
     parser.add_argument("--total_episodes", help = "", default="1")
-    parser.add_argument("--env_seed", help = "", default="12345")
-    parser.add_argument("--output", help = "path", default="./results/gym_lunar_random_seed_12345.gif")
+    parser.add_argument("--env_seed", help = "0000 -> no seed", default="0000")
+    parser.add_argument("--output", help = "path", default="/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/results/30082024_01_gym_lunar_ppo_rllib_seed_0000")
     parser.add_argument("--model_checkpoint_path", type=str,
                         help="Path to the model checkpoint",
                         # default='/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/checkpoints/checkpoint_lunar_dqn_150424.pth'
@@ -180,7 +185,7 @@ if __name__ == '__main__':
                         )
     parser.add_argument("--output_episodes", type=str,
                         help="Path to the model checkpoint",
-                        default='./episodes'
+                        default='/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/episodes'
                         )
     args = parser.parse_args()
     print(f"Running with following CLI options: {args}")
