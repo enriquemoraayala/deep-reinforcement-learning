@@ -59,9 +59,9 @@ def gym2gif(env, eps, e, seed, filename="gym_animation", max_steps=0):
     score = 0
     for step in ep['step']:
         frame = env.render()
-        frames.append(TextOnImg(frame,score))
         state, reward, done, _, _ = env.step(actions.iloc[step])
         score += reward
+        frames.append(TextOnImg(frame,score))
         if done:
             break
     scores.append(score)
@@ -74,6 +74,7 @@ def gym2gif(env, eps, e, seed, filename="gym_animation", max_steps=0):
 def main(args):
     env = gym.make("LunarLander-v2", render_mode="rgb_array")
     eps = load_json_to_df(args.json_file, int(args.num_eps))
+    # eps.to_csv(args.json_file + '.csv')
     for e in eps.ep.unique():
         gym2gif(env, eps, e, int(args.env_seed), filename=args.output_file, max_steps=0)
 
@@ -81,14 +82,14 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description="Train RL agent on WAF-Brain Environment with RLLib")
+        description="Visualize RLLIB Json file with episodes")
     parser.add_argument("--json_file", type=str,
                         help="Path to json file with the episodes.",
-                        default="/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/episodes/generated_rllib_random_5eps_200steps_210724")
+                        default="/home/azureuser/cloudfiles/code/Users/Enrique.Mora/ope-dcg/episodes/generated_rllib_random_seed_12345_1eps_200steps_300824")
     parser.add_argument("--output_file",
-                        default="/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/episodes/generated_rllib_random_5eps_200steps_210724")
-    parser.add_argument("--num_eps", default="5")
-    parser.add_argument("--env_seed", default="1234")
+                        default="/home/azureuser/cloudfiles/code/Users/Enrique.Mora/ope-dcg/episodes/generated_rllib_random_seed_12345_1eps_200steps_300824")
+    parser.add_argument("--num_eps", default="1")
+    parser.add_argument("--env_seed", default="12345")
     args = parser.parse_args()
     print(f"Running with following CLI options: {args}")
     main(args)

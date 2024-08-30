@@ -1,3 +1,9 @@
+"""
+This script generates episodes and save them in json rllib format
+OR
+generates a GIF with the episode
+"""
+
 # import gym
 import gymnasium as gym
 import torch
@@ -68,7 +74,7 @@ def generate_episodes(args, env, agent):
     if args.agent_type == 'random':
         file_name = f'generated_rllib_{args.agent_type}_seed_{args.env_seed}_{args.total_episodes}eps_{args.max_ep}steps_{today}'
     else:
-        file_name = f'generated_rllib_{args.agent_type}_{args.total_episodes}eps_{args.max_ep}steps_{today}'
+        file_name = f'generated_rllib_{args.agent_type}_seed_{args.env_seed}_{args.total_episodes}eps_{args.max_ep}steps_{today}'
     writer = JsonWriter(
         os.path.join(args.output_episodes, file_name)
     )
@@ -137,7 +143,7 @@ def generate_episodes(args, env, agent):
 
 def render_agent(args):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    env = gym.make("LunarLander-v2", render_mode="rgb_array")
+    env = gym.make("LunarLander-v2", render_mode="rgb_array", )
     num_states = env.observation_space.shape[0]
     num_actions = env.action_space.n
     if args.agent_type == 'dqn':
@@ -164,13 +170,13 @@ if __name__ == '__main__':
     parser.add_argument("--agent_type", help = "dqn/random/ppo_rllib", default="random")
     parser.add_argument("--render", help = "yes/no", default="no")
     parser.add_argument("--max_ep", help = "0/max_ep", default="200")
-    parser.add_argument("--total_episodes", help = "", default="5")
-    parser.add_argument("--env_seed", help = "", default="1234")
-    parser.add_argument("--output", help = "path", default="./results/gym_lunar_random_seed_1234.gif")
+    parser.add_argument("--total_episodes", help = "", default="1")
+    parser.add_argument("--env_seed", help = "", default="12345")
+    parser.add_argument("--output", help = "path", default="./results/gym_lunar_random_seed_12345.gif")
     parser.add_argument("--model_checkpoint_path", type=str,
                         help="Path to the model checkpoint",
                         # default='/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/checkpoints/checkpoint_lunar_dqn_150424.pth'
-                        default='/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/checkpoints/200420240756/ckpt_ppo_agent_torch_lunar_lander'
+                        default='/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/checkpoints/300820240858/ckpt_ppo_agent_torch_lunar_lander'
                         )
     parser.add_argument("--output_episodes", type=str,
                         help="Path to the model checkpoint",

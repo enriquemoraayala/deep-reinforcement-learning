@@ -58,16 +58,16 @@ def main(args):
                "episode_reward_max", "episode_len_mean", "filename"]
     df_results = pd.DataFrame(columns=columns)
     lengths = []
-    for n in range(50):
+    for n in range(100):
         result = trainer.train()
         if n % 5 == 0:
             print(pretty_print(result))
             if args.agent_type == 'ppo':
-                file_name = trainer.save('checkpoints/' +
+                file_name = trainer.save('/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/checkpoints/' +
                                          formatted_date +
                                          '/ckpt_ppo_agent_torch_lunar_lander')
             if args.agent_type == 'dqn':
-                file_name = trainer.save('checkpoints/' +
+                file_name = trainer.save('/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/checkpoints/' +
                                          formatted_date +
                                          '/ckpt_dqn_agent_torch_lunar_lander')
         s = "{:3d} reward {:6.2f}/{:6.2f}/{:6.2f} len {:6.2f} saved {}"
@@ -91,7 +91,7 @@ def main(args):
 
     print(0)
     print(pretty_print(result))
-    df_results.to_csv(f'results/{formatted_date}_{args.agent_type}_lunar_lander.csv',
+    df_results.to_csv(f'/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/results/{formatted_date}_{args.agent_type}_lunar_lander.csv',
                       index=False)
 
 
