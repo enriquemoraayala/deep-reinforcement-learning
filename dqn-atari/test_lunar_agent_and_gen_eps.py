@@ -23,11 +23,11 @@ from ray.rllib.evaluation.sample_batch_builder import SampleBatchBuilder
 from ray.rllib.offline.json_writer import JsonWriter
 from ray.rllib.algorithms.algorithm import Algorithm
 
-def TextOnImg(img, score, x=20, y=20):
+def TextOnImg(img, score, x=20, y=20, text='Score'):
     img = Image.fromarray(img)
     # font = ImageFont.truetype('/Library/Fonts/arial.ttf', 18)
     draw = ImageDraw.Draw(img)
-    draw.text((x, y), f"Score={score: .2f}", fill=(255, 255, 255))
+    draw.text((x, y), f"{text}={score: .2f}", fill=(255, 255, 255))
     return np.array(img)
 
 def save_frames_as_gif(frames, path_filename):
@@ -37,28 +37,30 @@ def save_frames_as_gif(frames, path_filename):
     print("Done!")
 
 def gym2gif(args, env, agent, filename="gym_animation", total_ep=3, max_steps=0):
-    frames = []
     scores = []
     steps = []
     for i in range(total_ep):
+        frames = []
         state = env.reset()
         # after reset, state is diferent from env.step()
         state = state[0]
         score = 0
+        frame = env.render()
+        frames.append(TextOnImg(frame, score, text='Score'))
         if max_steps == 0:
             max_steps = 1000
-        for idx_step in range(max_steps):
-            frame = env.render()
+        for idx_step in range(max_steps): 
             if args.agent_type == 'random':
                 action = env.action_space.sample()
             elif args.agent_type == 'dqn':
                 action = agent.getAction(state, epsilon=0)
             elif args.agent_type == 'ppo_rllib':
-                action = agent.compute_single_action(state)
+                action = agent.compute_single_action(state, explore=False)
             state, reward, done, _, _ = env.step(action)
             score += reward
-            frames.append(TextOnImg(frame, score))
-            frames.append(TextOnImg(frame, i, 20, 40))
+            frame = env.render()
+            frames.append(TextOnImg(frame, score, text='Score'))
+            # frames.append(TextOnImg(frame, idx_step, 20, 80, text='Step' ))
             if i > 200:
                 pass
             if done:
@@ -107,7 +109,8 @@ def generate_episodes(args, env, agent):
                 action = agent.getAction(state, epsilon=0)
                 prob, logp = agent.getProbs(state, action)
             elif args.agent_type == 'ppo_rllib':
-                action = agent.compute_single_action(state)
+                action = agent.compute_single_action(state, explore=False)
+                # action_2, state_2, extra_info = agent.compute_single_action(state, explore=False, full_fetch=True )
                 state = torch.from_numpy(np.stack(state))
                 state = torch.unsqueeze(state, 0)
                 policy = agent.get_policy()
@@ -175,13 +178,13 @@ if __name__ == '__main__':
     parser.add_argument("--agent_type", help = "dqn/random/ppo_rllib", default="ppo_rllib")
     parser.add_argument("--render", help = "yes/no", default="yes")
     parser.add_argument("--max_ep", help = "0/max_ep", default="0")
-    parser.add_argument("--total_episodes", help = "", default="1")
+    parser.add_argument("--total_episodes", help = "", default="10")
     parser.add_argument("--env_seed", help = "0000 -> no seed", default="0000")
-    parser.add_argument("--output", help = "path", default="/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/results/30082024_01_gym_lunar_ppo_rllib_seed_0000")
+    parser.add_argument("--output", help = "path", default="/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/episodes/ppo_rllib_130920241043")
     parser.add_argument("--model_checkpoint_path", type=str,
                         help="Path to the model checkpoint",
                         # default='/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/checkpoints/checkpoint_lunar_dqn_150424.pth'
-                        default='/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/checkpoints/300820240858/ckpt_ppo_agent_torch_lunar_lander'
+                        default='/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/checkpoints/130920241043/ckpt_ppo_agent_torch_lunar_lander'
                         )
     parser.add_argument("--output_episodes", type=str,
                         help="Path to the model checkpoint",

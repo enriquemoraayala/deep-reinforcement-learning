@@ -32,8 +32,6 @@ def main(args):
     # run = Run.get_context(allow_offline=True)
     env = gym.make("LunarLander-v2")
     config = {'gamma': 0.999,
-              'lr': 0.0001,
-              'n_step': 1000,
               'num_workers': 0,
               'monitor': True,
               'framework': 'torch'
@@ -44,8 +42,8 @@ def main(args):
                 PPOConfig()
                 .training(gamma=0.999, lr=0.0001)
                 .framework('torch')
-                .rollouts(num_rollout_workers=0)
-                .resources(num_gpus=0)
+                .rollouts(num_rollout_workers=1)
+                .resources(num_gpus=int(args.numgpus))
                 .environment(env="LunarLander-v2")
                 .build()
             )
@@ -55,12 +53,12 @@ def main(args):
     formatted_date = get_file_format()
 
     columns = ["epoch", "episode_reward_min", "episode_reward_mean",
-               "episode_reward_max", "episode_len_mean", "filename"]
+               "episode_reward_max", "episode_len_mean","num_eps_iter"]
     df_results = pd.DataFrame(columns=columns)
     lengths = []
-    for n in range(100):
+    for n in range(1000):
         result = trainer.train()
-        if n % 5 == 0:
+        if n % 100 == 0:
             print(pretty_print(result))
             if args.agent_type == 'ppo':
                 file_name = trainer.save('/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/checkpoints/' +
@@ -78,19 +76,18 @@ def main(args):
             result["episode_reward_mean"],
             result["episode_reward_max"],
             result["episode_len_mean"],
-            file_name
+            result["sampler_results"]["episodes_this_iter"],
         ))
-        new_result = {"epoch": n,
+        new_result = {"iteration": n,
                       "episode_reward_min": result["episode_reward_min"],
                       "episode_reward_mean": result["episode_reward_mean"],
                       "episode_reward_max": result["episode_reward_max"],
                       "episode_len_mean": result["episode_len_mean"],
-                      "filename": file_name}
+                      "num_eps_iter": result["sampler_results"]["episodes_this_iter"]
+                      }
         # df_results = pd.concat([df_results, new_result], ignore_index=True)
         df_results.loc[len(df_results)] = new_result
 
-    print(0)
-    print(pretty_print(result))
     df_results.to_csv(f'/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/results/{formatted_date}_{args.agent_type}_lunar_lander.csv',
                       index=False)
 
@@ -102,6 +99,7 @@ if __name__ == '__main__':
                         help="Init Ray in local mode for easier debugging.")
     parser.add_argument("--agent_type", type=str, default='ppo',
                         help="ppo/dqn")
+    parser.add_argument("--numgpus", type=str, default='0')
     args = parser.parse_args()
     print(f"Running with following CLI options: {args}")
     print("Ray Version %s" % ray.__version__)

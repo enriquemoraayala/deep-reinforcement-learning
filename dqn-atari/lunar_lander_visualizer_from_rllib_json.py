@@ -53,7 +53,10 @@ def gym2gif(env, eps, e, seed, filename="gym_animation", max_steps=0):
 
     ep = eps[eps['ep'] == e]
     actions = ep['action']
-    state = env.reset(seed=seed)
+    if seed == '0000':
+        state = env.reset()
+    else:    
+        state = env.reset(seed=seed)
     # after reset, state is diferent from env.step()
     state = state[0]
     score = 0
@@ -85,11 +88,11 @@ if __name__ == '__main__':
         description="Visualize RLLIB Json file with episodes")
     parser.add_argument("--json_file", type=str,
                         help="Path to json file with the episodes.",
-                        default="/home/azureuser/cloudfiles/code/Users/Enrique.Mora/ope-dcg/episodes/generated_rllib_random_seed_12345_1eps_200steps_300824")
+                        default="/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/episodes/generated_rllib_ppo_rllib_seed_0000_10eps_0steps_130924")
     parser.add_argument("--output_file",
-                        default="/home/azureuser/cloudfiles/code/Users/Enrique.Mora/ope-dcg/episodes/generated_rllib_random_seed_12345_1eps_200steps_300824")
-    parser.add_argument("--num_eps", default="1")
-    parser.add_argument("--env_seed", default="12345")
+                        default="/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/episodes/generated_rllib_ppo_rllib_seed_0000_10eps_0steps_130924")
+    parser.add_argument("--num_eps", default="10")
+    parser.add_argument("--env_seed", default="0000")
     args = parser.parse_args()
     print(f"Running with following CLI options: {args}")
     main(args)
