@@ -1,4 +1,7 @@
-
+*.csv
+*.json
+*.pkl
+*.zip
 *.pyc
 .vscode/settings.json
 *.log
@@ -4963,3 +4966,4 @@ DDPG-Reacher-Unity-Agent/Reacher.app/Contents/Resources/ScreenSelector.nib/info.
 DDPG-Reacher-Unity-Agent/Reacher.app/Contents/Resources/ScreenSelector.nib/keyedobjects.nib
 DDPG-Reacher-Unity-Agent/Reacher.app/Contents/Resources/unity default resources
 DDPG-Reacher-Unity-Agent/Reacher.app/Contents/Resources/UnityPlayerIcon.png
+dqn-atari/checkpoints.zip
