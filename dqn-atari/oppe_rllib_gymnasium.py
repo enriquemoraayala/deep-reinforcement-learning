@@ -1,5 +1,5 @@
 # Gymnasium needs ray 2.10 incompatible with rl-waf. For the Lunar Lander we need to use oppe4rl env
-"""Calculating the OPE using RLLIB"""
+"""Calculating the OPE using RLLIB + V_pi_b + V_pi_e from generated episodes"""
 
 import argparse
 import json
@@ -8,6 +8,7 @@ from datetime import datetime
 import ray
 import pandas as pd
 import gymnasium as gym
+import csv
 # import ssl
 
 from ray.tune.registry import register_env
@@ -20,10 +21,85 @@ from ray.rllib.offline.estimators import DoublyRobust, ImportanceSampling, \
 from ray.rllib.offline.estimators.fqe_torch_model import FQETorchModel
 
 
+def load_json_to_df(json_path, num_eps):
+    rows = []
+    reader = JsonReader(json_path)
+    for i in range(num_eps):
+        episode = reader.next()
+        for step in range(len(episode)):
+            row = {'ep': episode['eps_id'][step],
+                   'step': step,
+                   'state': episode['obs'][step],
+                   'action': episode['actions'][step],
+                   'prob': episode['action_prob'][step],
+                   'logprob': episode['action_logp'][step],
+                   'reward': episode['rewards'][step],
+                   'next_state': episode['new_obs'][step],
+                   'done': episode['dones'][step]
+            }
+            rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def add_expected_reward_to_df(df, total_episodes):
+    discount = 0.99  # based in the PPO original paper, default discount
+    for ep in range(total_episodes):
+        df_ = df[df['ep'] == ep].copy()
+        df_.sort_values(by=['step'], inplace=True)
+        cum_reward = 0.0
+        j = 0
+        for i, step in df_.iterrows():
+            cum_reward = cum_reward + step.reward * discount**j
+            df.at[i, 'exp_reward'] = cum_reward
+            j += 1
+    return df
+
+
+def save_to_csv(args, header, row):
+    # Verifica si el archivo ya existe
+    file_exists = os.path.isfile(args.real_value_functions_csv)
+
+    # Abre el archivo en modo "append" si existe, o en modo "write" si no
+    with open(args.real_value_functions_csv, mode="a" if file_exists else "w", newline="", encoding="utf-8") as csvfile:
+        writer = csv.writer(csvfile)
+        if not file_exists:
+            writer.writerow(header)
+        writer.writerow(row)
+    print(f"Datos escritos en {args.real_value_functions_csv}")
+
+
+def compute_value_function(agent_type, df):
+    J_eps = 0.0
+    df_ = df.groupby('ep').last()
+    J_eps = df_['exp_reward'].mean()
+    print('Total Real Value function of %s Policy: %.8f' %
+          (agent_type, J_eps))
+    return J_eps
+
+def policy_value_functions(args):
+    now = datetime.now()
+    now = now.strftime("%d%m%y%H")
+    total_episodes_b = int(args.num_beh_episodes)
+    df_b = load_json_to_df(args.b_policy_episodes_path, total_episodes_b)
+    df_b = add_expected_reward_to_df(df_b, total_episodes_b)
+    for exp in range(int(args.e_num_experiments)):
+        df_e = load_json_to_df(args.e_policy_episodes_path + f'_{str(exp)}', int(args.num_eval_episodes))
+        df_e = add_expected_reward_to_df(df_e, int(args.num_eval_episodes))
+        v_function_beh = compute_value_function('Behavioral', df_b)
+        v_function_eval = compute_value_function('Evaluation', df_e)
+        header = ['date', 'num_b_episodes', 'num_e_episodes', 'agent_type_b', 'agent_type_e', 'b_model_version', 'e_model_version',
+                'b_real_value_function', 'e_real_value_function']
+        row = [now, total_episodes_b,  int(args.num_eval_episodes), args.beh_type, args.agent_type, 'random', args.e_model_version,
+            v_function_beh, v_function_eval]
+        save_to_csv(args, header, row)
+    
+
+
 def main(args_):
     """Main function"""
-    ray.init(local_mode=args_.local_mode)
+    # ray.init(local_mode=args_.local_mode)
     # env = gym.make("LunarLander-v2")
+  
 
     if args_.agent_type == 'ppo':
         path_to_checkpoint = f'{args_.chechpoint_path}/' +\
@@ -123,6 +199,7 @@ def main(args_):
     print('DR V_behavior: %0.3f' % df_results_dr.v_behavior.mean())
     print('DR V_target: %0.3f' % df_results_dr.v_target.mean())
 
+    policy_value_functions(args_)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -133,9 +210,22 @@ if __name__ == '__main__':
                         help="ppo/dqn/random")
     parser.add_argument("--beh_type", default="random",
                         help="ppo/dqn/random")
-    parser.add_argument("--chechpoint_path", default="./checkpoints/200420240756")
-    parser.add_argument("--json_path_train", default="/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/episodes/generated_rllib_random_1000eps_200steps_200424")
-    parser.add_argument("--json_path_eval", default="/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/episodes/generated_rllib_random_300eps_200steps_200424")
+    parser.add_argument("--chechpoint_path", default="./checkpoints/130920241043")
+    parser.add_argument("--e_model_version", default="130920241043")
+    parser.add_argument("--json_path_train", default="./episodes/generated_rllib_random_1000eps_200steps_200424")
+    parser.add_argument("--json_path_eval", default="./episodes/generated_rllib_random_300eps_200steps_200424")
+    parser.add_argument("--num_beh_episodes", default="5000")
+    parser.add_argument("--num_eval_episodes", default="100")
+    parser.add_argument("--real_value_functions_csv",
+                        default="./results/real_value_functions.csv")
+    parser.add_argument("--b_policy_episodes_path",
+                        default="./episodes/generated_rllib_random_5000eps_200steps_030524")
+    parser.add_argument("--e_policy_episodes_path",
+                        default="./episodes/130920241043/181124_generated_rllib_ppo_rllib_seed_0000_100eps_200steps_exp_")
+    parser.add_argument("--e_num_experiments",
+                        default="20")
+    
+    
     args = parser.parse_args()
     print(f"Running with following CLI options: {args}")
     main(args)

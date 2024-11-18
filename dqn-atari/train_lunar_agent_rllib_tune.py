@@ -26,27 +26,32 @@ def get_file_format():
     formatted_date = f"{day}{month}{year}{hour}{minute}"
     return formatted_date
 
+def env_creator(cfg):
+    env = gym.make("LunarLander-v2")
+    return env
+
 
 def main(args):
     # tf.compat.v1.enable_eager_execution()
     ray.init(local_mode=args.local_mode)
     # run = Run.get_context(allow_offline=True)
-    env = gym.make("LunarLander-v2")
+    tune.register_env("lunarlander", env_creator)
+
     config = (
         PPOConfig()
-            .environment(env="LunarLander-v2")
-            .rollouts(num_rollout_workers=2)  # Number of parallel environments
+            .environment("lunarlander")
+            .rollouts(num_rollout_workers=0)  # Number of parallel environments
             .framework("torch")  # Can use "tf" for TensorFlow
             .training(
-                gamma=0.99,  # Discount factor
+                gamma=0.999,  # Discount factor
                 lr=1e-3,  # Learning rate
                 train_batch_size=4000,  # Total training batch size
-                sgd_minibatch_size=128,  # Size of minibatches
+                # sgd_minibatch_size=128,  # Size of minibatches
                 num_sgd_iter=10  # Number of SGD iterations per minibatch
             )
             .resources(num_gpus=int(args.numgpus))  # Set this to 1 if you have a GPU   
         )
-    config = {'gamma': 0.999,
+    config_ = {'gamma': 0.999,
               'num_workers': 0,
               'monitor': True,
               'framework': 'torch'
@@ -59,7 +64,7 @@ def main(args):
     df_results = pd.DataFrame(columns=columns)
     lengths = []
 
-    checkpoint_dir = '/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/checkpoints/' + formatted_date
+    checkpoint_dir = '/home/enrique/repositories/deep-reinforcement-learning/dqn-atari/checkpoints/' + formatted_date
     checkpoint_filename_template = '/ckpt_ppo_agent_torch_lunar_lander_gpu_{training_iteration}'
     # Run the training with Tune    
     tuner = tune.Tuner(
@@ -68,6 +73,8 @@ def main(args):
         run_config=train.RunConfig(
             stop={"episode_reward_mean": 200},  # Stop once the average reward reaches 200
             checkpoint_config=train.CheckpointConfig(
+                num_to_keep=5,
+                checkpoint_frequency=10,
                 checkpoint_at_end=True  # Save a checkpoint at the end of training
             ),
         ),

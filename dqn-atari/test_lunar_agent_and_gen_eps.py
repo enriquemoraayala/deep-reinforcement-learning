@@ -74,14 +74,14 @@ def gym2gif(args, env, agent, filename="gym_animation", total_ep=3, max_steps=0)
     return scores, steps
 
 
-def generate_episodes(args, env, agent):
+def generate_episodes(args, env, agent, exp):
     batch_builder = SampleBatchBuilder()  # or MultiAgentSampleBatchBuilder
     today = datetime.now()
     today = today.strftime("%d%m%y")
     if args.agent_type == 'random':
-        file_name = f'generated_rllib_{args.agent_type}_seed_{args.env_seed}_{args.total_episodes}eps_{args.max_ep}steps_{today}'
+        file_name = f'{today}_generated_rllib_{args.agent_type}_seed_{args.env_seed}_{args.total_episodes}eps_{args.max_ep}steps_exp_{exp}'
     else:
-        file_name = f'generated_rllib_{args.agent_type}_seed_{args.env_seed}_{args.total_episodes}eps_{args.max_ep}steps_{today}'
+        file_name = f'{today}_generated_rllib_{args.agent_type}_seed_{args.env_seed}_{args.total_episodes}eps_{args.max_ep}steps_exp_{exp}'
     writer = JsonWriter(
         os.path.join(args.output_episodes, file_name)
     )
@@ -150,6 +150,7 @@ def generate_episodes(args, env, agent):
 
 
 def render_agent(args):
+    num_experiments = 20
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     env = gym.make("LunarLander-v2", render_mode="rgb_array", )
     num_states = env.observation_space.shape[0]
@@ -161,12 +162,13 @@ def render_agent(args):
         agent = Algorithm.from_checkpoint(args.model_checkpoint_path)
     elif args.agent_type == 'random':
         agent = RandomAgent(num_actions, 1234)
-    if args.render == 'yes':
-        scores, steps = gym2gif(args, env, agent, filename=args.output, total_ep=int(args.total_episodes), max_steps=int(args.max_ep))
-    else:
-        scores, steps = generate_episodes(args, env, agent)
-    for i in range(len(scores)):
-        print(f'Episode {i} - Score: {scores[i]} - Steps: {steps[i]}')
+    for experiment in range(num_experiments):
+        if args.render == 'yes':
+            scores, steps = gym2gif(args, env, agent, filename=args.output, total_ep=int(args.total_episodes), max_steps=int(args.max_ep))
+        else:
+            scores, steps = generate_episodes(args, env, agent, experiment)
+            print(f'Experiment {experiment} - Num Episodes {args.total_episodes} - ' +
+                  f'Avg. Score: {np.mean(scores)} - Avg. Steps: {np.mean(steps)}')
 
 
 if __name__ == '__main__':
@@ -176,19 +178,19 @@ if __name__ == '__main__':
                         help="Path to configuration file of the envionment.",
                         default='LunarLander-v2')
     parser.add_argument("--agent_type", help = "dqn/random/ppo_rllib", default="ppo_rllib")
-    parser.add_argument("--render", help = "yes/no", default="yes")
-    parser.add_argument("--max_ep", help = "0/max_ep", default="0")
-    parser.add_argument("--total_episodes", help = "", default="10")
+    parser.add_argument("--render", help = "yes/no", default="no")
+    parser.add_argument("--max_ep", help = "0/max_ep", default="200")
+    parser.add_argument("--total_episodes", help = "", default="100")
     parser.add_argument("--env_seed", help = "0000 -> no seed", default="0000")
-    parser.add_argument("--output", help = "path", default="/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/episodes/ppo_rllib_130920241043")
+    parser.add_argument("--output", help = "path", default="/home/enrique/repositories/deep-reinforcement-learning/dqn-atari/episodes/ppo_rllib_130920241043")
     parser.add_argument("--model_checkpoint_path", type=str,
                         help="Path to the model checkpoint",
                         # default='/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/checkpoints/checkpoint_lunar_dqn_150424.pth'
-                        default='/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/checkpoints/130920241043/ckpt_ppo_agent_torch_lunar_lander'
+                        default='/home/enrique/repositories/deep-reinforcement-learning/dqn-atari/checkpoints/130920241043/ckpt_ppo_agent_torch_lunar_lander'
                         )
     parser.add_argument("--output_episodes", type=str,
                         help="Path to the model checkpoint",
-                        default='/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/episodes'
+                        default='/home/enrique/repositories/deep-reinforcement-learning/dqn-atari/episodes/130920241043'
                         )
     args = parser.parse_args()
     print(f"Running with following CLI options: {args}")
