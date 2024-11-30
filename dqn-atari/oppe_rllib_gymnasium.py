@@ -112,6 +112,22 @@ def main(args_):
     if args_.agent_type == 'random':
         algo = 'random'
 
+    columns_experiments = ['date', 'experiment', 'num_eps', 'num_max_steps', 'method', 'v_behavior',
+                           'v_behavior_std', 'v_target', 'v_target_std',
+                            'v_gain', 'v_delta']
+    results = pd.DataFrame(columns=columns_experiments)
+    # first, train and eval v_pi_e with oppe rllib several times
+    for dataset in range(int(args_.num_training_datasets)):
+        results_ = train_oppe_and_estimate(args_, algo, dataset, columns_experiments)
+        results = pd.concat([results, results_], ignore_index=True)
+
+    # finally, evaluate the real value function for v_pi_b and v_pi_e with different datasets 
+    # to compare
+    policy_value_functions(args_)
+
+
+def train_oppe_and_estimate(args_, algo, dataset, columns_experiments):
+
     dr_estimator = DoublyRobust(
         policy=algo.get_policy(),
         gamma=0.99,
@@ -137,13 +153,13 @@ def main(args_):
     )
 
     # Train estimator's Q-model; only required for DM and DR estimators
-    reader_train = JsonReader(args_.json_path_train)
+    reader_train = JsonReader(args_.json_path_train + str(dataset))
     print('Training DM estimator')
     for _ in range(1000):
        batch = reader_train.next()
        print(dm_estimator.train(batch))
 
-    reader_train = JsonReader(args_.json_path_train)
+    reader_train = JsonReader(args_.json_path_train + str(dataset))
     print('Training DR estimator')
     for _ in range(1000):
        batch = reader_train.next()
@@ -156,9 +172,10 @@ def main(args_):
     df_results_is = pd.DataFrame(columns=columns)
     df_results_wis = pd.DataFrame(columns=columns)
     df_results_dm = pd.DataFrame(columns=columns)
+    results = pd.DataFrame(columns=columns_experiments)
     # reader = JsonReader(args.json_path)
     # Compute off-policy estimates
-    reader_eval = JsonReader(args_.json_path_eval)
+    reader_eval = JsonReader(args_.json_path_eval + str(dataset))
     i = 0
     for _ in range(300):
         batch = reader_eval.next()
@@ -178,28 +195,36 @@ def main(args_):
     now = datetime.now()
     now = now.strftime("%d%m%y%H")
     df_results_dr.to_csv('./results/' +
-                         f'{now}_e_{args_.agent_type}_b_{args_.beh_type}_dr.csv',
+                         f'{now}_e_{args_.agent_type}_b_{args_.beh_type}_exp_{dataset}_dr.csv',
                          )
     df_results_is.to_csv('./results/' +
-                         f'{now}_e_{args_.agent_type}_b_{args_.beh_type}_is.csv',
+                         f'{now}_e_{args_.agent_type}_b_{args_.beh_type}_exp_{dataset}_is.csv',
                          )
     df_results_wis.to_csv('./results/' +
-                          f'{now}_e_{args_.agent_type}_b_{args_.beh_type}_wis.csv',
+                          f'{now}_e_{args_.agent_type}_b_{args_.beh_type}_exp_{dataset}_wis.csv',
                           )
     df_results_dm.to_csv('./results/' +
-                         f'{now}_e_{args_.agent_type}_b_{args_.beh_type}_dm.csv',
+                         f'{now}_e_{args_.agent_type}_b_{args_.beh_type}_exp_{dataset}_dm.csv',
                          )
 
     print('DM V_behavior: %0.3f' % df_results_dm.v_behavior.mean())
     print('DM V_target: %0.3f' % df_results_dm.v_target.mean())
+    row = [now, dataset, 1500, 200, 'dm', df_results_dm.v_behavior.mean(), df_results_dm.v_target.mean()]
+    results = pd.concat([results, row], ignore_index=True)
     print('IS V_behavior: %0.3f' % df_results_is.v_behavior.mean())
     print('IS V_target: %0.3f' % df_results_is.v_target.mean())
+    row = [now, dataset, 1500, 200, 'is', df_results_is.v_behavior.mean(), df_results_is.v_target.mean()]
+    results = pd.concat([results, row], ignore_index=True)
     print('WIS V_behavior: %0.3f' % df_results_wis.v_behavior.mean())
     print('WIS V_target: %0.3f' % df_results_wis.v_target.mean())
+    row = [now, dataset, 1500, 200, 'wis', df_results_wis.v_behavior.mean(), df_results_wis.v_target.mean()]
+    results = pd.concat([results, row], ignore_index=True)
     print('DR V_behavior: %0.3f' % df_results_dr.v_behavior.mean())
     print('DR V_target: %0.3f' % df_results_dr.v_target.mean())
+    row = [now, dataset, 1500, 200, 'dr', df_results_dr.v_behavior.mean(), df_results_dr.v_target.mean()]
+    results = pd.concat([results, row], ignore_index=True)
+    return results
 
-    policy_value_functions(args_)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -212,8 +237,9 @@ if __name__ == '__main__':
                         help="ppo/dqn/random")
     parser.add_argument("--chechpoint_path", default="./checkpoints/130920241043")
     parser.add_argument("--e_model_version", default="130920241043")
-    parser.add_argument("--json_path_train", default="./episodes/generated_rllib_random_1000eps_200steps_200424")
-    parser.add_argument("--json_path_eval", default="./episodes/generated_rllib_random_300eps_200steps_200424")
+    parser.add_argument("--num_training_datasets", default="50")
+    parser.add_argument("--json_path_train", default="./episodes/130920241043/301124_generated_rllib_random_seed_0000_3500eps_200steps_exp_")
+    parser.add_argument("--json_path_eval", default="./episodes/130920241043/301124_generated_rllib_random_seed_0000_1500eps_200steps_exp_")
     parser.add_argument("--num_beh_episodes", default="5000")
     parser.add_argument("--num_eval_episodes", default="100")
     parser.add_argument("--real_value_functions_csv",
@@ -224,8 +250,7 @@ if __name__ == '__main__':
                         default="./episodes/130920241043/181124_generated_rllib_ppo_rllib_seed_0000_100eps_200steps_exp_")
     parser.add_argument("--e_num_experiments",
                         default="20")
-    
-    
+        
     args = parser.parse_args()
     print(f"Running with following CLI options: {args}")
     main(args)
