@@ -83,7 +83,7 @@ def policy_value_functions(args):
     df_b = load_json_to_df(args.b_policy_episodes_path, total_episodes_b)
     df_b = add_expected_reward_to_df(df_b, total_episodes_b)
     for exp in range(int(args.e_num_experiments)):
-        df_e = load_json_to_df(args.e_policy_episodes_path + f'_{str(exp)}', int(args.num_eval_episodes))
+        df_e = load_json_to_df(args.e_policy_episodes_path + f'{str(exp)}', int(args.num_eval_episodes))
         df_e = add_expected_reward_to_df(df_e, int(args.num_eval_episodes))
         v_function_beh = compute_value_function('Behavioral', df_b)
         v_function_eval = compute_value_function('Evaluation', df_e)
