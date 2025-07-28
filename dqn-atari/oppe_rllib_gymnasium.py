@@ -113,8 +113,7 @@ def main(args_):
         algo = 'random'
 
     columns_experiments = ['date', 'experiment', 'num_eps', 'num_max_steps', 'method', 'v_behavior',
-                           'v_behavior_std', 'v_target', 'v_target_std',
-                            'v_gain', 'v_delta']
+                           'v_target']
     results = pd.DataFrame(columns=columns_experiments)
     # first, train and eval v_pi_e with oppe rllib several times
     for dataset in range(int(args_.num_training_datasets)):
@@ -210,18 +209,22 @@ def train_oppe_and_estimate(args_, algo, dataset, columns_experiments):
     print('DM V_behavior: %0.3f' % df_results_dm.v_behavior.mean())
     print('DM V_target: %0.3f' % df_results_dm.v_target.mean())
     row = [now, dataset, 1500, 200, 'dm', df_results_dm.v_behavior.mean(), df_results_dm.v_target.mean()]
+    row = pd.DataFrame([row], columns=columns_experiments)
     results = pd.concat([results, row], ignore_index=True)
     print('IS V_behavior: %0.3f' % df_results_is.v_behavior.mean())
     print('IS V_target: %0.3f' % df_results_is.v_target.mean())
     row = [now, dataset, 1500, 200, 'is', df_results_is.v_behavior.mean(), df_results_is.v_target.mean()]
+    row = pd.DataFrame([row], columns=columns_experiments)
     results = pd.concat([results, row], ignore_index=True)
     print('WIS V_behavior: %0.3f' % df_results_wis.v_behavior.mean())
     print('WIS V_target: %0.3f' % df_results_wis.v_target.mean())
     row = [now, dataset, 1500, 200, 'wis', df_results_wis.v_behavior.mean(), df_results_wis.v_target.mean()]
+    row = pd.DataFrame([row], columns=columns_experiments)
     results = pd.concat([results, row], ignore_index=True)
     print('DR V_behavior: %0.3f' % df_results_dr.v_behavior.mean())
     print('DR V_target: %0.3f' % df_results_dr.v_target.mean())
     row = [now, dataset, 1500, 200, 'dr', df_results_dr.v_behavior.mean(), df_results_dr.v_target.mean()]
+    row = pd.DataFrame([row], columns=columns_experiments)
     results = pd.concat([results, row], ignore_index=True)
     return results
 
