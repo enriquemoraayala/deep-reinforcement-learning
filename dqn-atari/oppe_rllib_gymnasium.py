@@ -76,54 +76,6 @@ def compute_value_function(agent_type, df):
           (agent_type, J_eps))
     return J_eps
 
-def policy_value_functions(args):
-    now = datetime.now()
-    now = now.strftime("%d%m%y%H")
-    total_episodes_b = int(args.num_beh_episodes)
-    df_b = load_json_to_df(args.b_policy_episodes_path, total_episodes_b)
-    df_b = add_expected_reward_to_df(df_b, total_episodes_b)
-    for exp in range(int(args.e_num_experiments)):
-        df_e = load_json_to_df(args.e_policy_episodes_path + f'{str(exp)}', int(args.num_eval_episodes))
-        df_e = add_expected_reward_to_df(df_e, int(args.num_eval_episodes))
-        v_function_beh = compute_value_function('Behavioral', df_b)
-        v_function_eval = compute_value_function('Evaluation', df_e)
-        header = ['date', 'num_b_episodes', 'num_e_episodes', 'agent_type_b', 'agent_type_e', 'b_model_version', 'e_model_version',
-                'b_real_value_function', 'e_real_value_function']
-        row = [now, total_episodes_b,  int(args.num_eval_episodes), args.beh_type, args.agent_type, 'random', args.e_model_version,
-            v_function_beh, v_function_eval]
-        save_to_csv(args, header, row)
-    
-
-
-def main(args_):
-    """Main function"""
-    # ray.init(local_mode=args_.local_mode)
-    # env = gym.make("LunarLander-v2")
-  
-
-    if args_.agent_type == 'ppo':
-        path_to_checkpoint = f'{args_.chechpoint_path}/' +\
-                             'ckpt_ppo_agent_torch_lunar_lander'
-        algo = Algorithm.from_checkpoint(path_to_checkpoint)
-    if args_.agent_type == 'dqn':
-        path_to_checkpoint = f'{args_.chechpoint_path}/' +\
-                             'ckpt_dqn_agent_torch_pca/checkpoint_000006'
-        algo = Algorithm.from_checkpoint(path_to_checkpoint)
-    if args_.agent_type == 'random':
-        algo = 'random'
-
-    columns_experiments = ['date', 'experiment', 'num_eps', 'num_max_steps', 'method', 'v_behavior',
-                           'v_target']
-    results = pd.DataFrame(columns=columns_experiments)
-    # first, train and eval v_pi_e with oppe rllib several times
-    for dataset in range(int(args_.num_training_datasets)):
-        results_ = train_oppe_and_estimate(args_, algo, dataset, columns_experiments)
-        results = pd.concat([results, results_], ignore_index=True)
-
-    # finally, evaluate the real value function for v_pi_b and v_pi_e with different datasets 
-    # to compare
-    policy_value_functions(args_)
-
 
 def train_oppe_and_estimate(args_, algo, dataset, columns_experiments):
 
@@ -229,6 +181,82 @@ def train_oppe_and_estimate(args_, algo, dataset, columns_experiments):
     return results
 
 
+def policy_value_functions(args):
+    now = datetime.now()
+    now = now.strftime("%d%m%y%H")
+    total_episodes_b = int(args.num_beh_episodes)
+    df_b = load_json_to_df(args.b_policy_episodes_path, total_episodes_b)
+    df_b = add_expected_reward_to_df(df_b, total_episodes_b)
+    for exp in range(int(args.e_num_experiments)):
+        df_e = load_json_to_df(args.e_policy_episodes_path + f'{str(exp)}', int(args.num_eval_episodes))
+        df_e = add_expected_reward_to_df(df_e, int(args.num_eval_episodes))
+        v_function_beh = compute_value_function('Behavioral', df_b)
+        v_function_eval = compute_value_function('Evaluation', df_e)
+        header = ['date', 'num_b_episodes', 'num_e_episodes', 'agent_type_b', 'agent_type_e', 'b_model_version', 'e_model_version',
+                'b_real_value_function', 'e_real_value_function']
+        row = [now, total_episodes_b,  int(args.num_eval_episodes), args.beh_type, args.agent_type, 'random', args.e_model_version,
+            v_function_beh, v_function_eval]
+        save_to_csv(args, header, row)
+    
+
+
+def main(args_):
+    """Main function"""
+    # ray.init(local_mode=args_.local_mode)
+    # env = gym.make("LunarLander-v2")
+  
+
+    if args_.agent_type == 'ppo':
+        path_to_checkpoint = f'{args_.chechpoint_path}/' +\
+                             'ckpt_ppo_agent_torch_lunar_lander'
+        algo = Algorithm.from_checkpoint(path_to_checkpoint)
+    if args_.agent_type == 'dqn':
+        path_to_checkpoint = f'{args_.chechpoint_path}/' +\
+                             'ckpt_dqn_agent_torch_pca/checkpoint_000006'
+        algo = Algorithm.from_checkpoint(path_to_checkpoint)
+    if args_.agent_type == 'random':
+        algo = 'random'
+
+    columns_experiments = ['date', 'experiment', 'num_eps', 'num_max_steps', 'method', 'v_behavior',
+                           'v_target']
+    results = pd.DataFrame(columns=columns_experiments)
+    if args.mode == "generate":
+        # first, train and eval v_pi_e with oppe rllib several times
+        for dataset in range(int(args_.num_training_datasets)):
+            results_ = train_oppe_and_estimate(args_, algo, dataset, columns_experiments)
+            results = pd.concat([results, results_], ignore_index=True)
+    else:
+        #reading csv's
+        for num_dataset in range(2, int(args.mode_num_experiments)):
+            df_dm = pd.read_csv(args.mode_results_csv_path +  str(num_dataset) + "_dm.csv" )
+            results = load_and_calculate_results(columns_experiments, results, num_dataset, df_dm, 'dm')
+            df_dr = pd.read_csv(args.mode_results_csv_path +  str(num_dataset) + "_dr.csv" )
+            results = load_and_calculate_results(columns_experiments, results, num_dataset, df_dr, 'dr')
+            df_is = pd.read_csv(args.mode_results_csv_path +  str(num_dataset) + "_is.csv" )
+            results = load_and_calculate_results(columns_experiments, results, num_dataset, df_is, 'is')
+            df_wis = pd.read_csv(args.mode_results_csv_path +  str(num_dataset) + "_wis.csv" )
+            results = load_and_calculate_results(columns_experiments, results, num_dataset, df_wis, 'wis')
+
+    # finally, evaluate the real value function for v_pi_b and v_pi_e with different datasets 
+    # to compare
+    # Calculate the average of v_behavior and v_target grouped by method
+    result_exp = results.groupby('method')[['v_behavior', 'v_target']].agg(['mean', 'std']).reset_index()
+    policy_value_functions(args_)
+    real_value_func = pd.read_csv(args.real_value_functions_csv)
+    print("Result of the experiments:")
+    print(result_exp)
+    print("Behavior value function (Avg):")
+    print(real_value_func["\'b_real_value_function\'"].mean())
+    print("Evaluation value function (Avg):")
+    print(real_value_func[" \'e_real_value_function\'"].mean())
+
+def load_and_calculate_results(columns_experiments, results, num_dataset, df, method):
+    row = ["28071511", num_dataset, 1500, 200, method, df.v_behavior.mean(), df.v_target.mean()]
+    row = pd.DataFrame([row], columns=columns_experiments)
+    results = pd.concat([results, row], ignore_index=True)
+    return results
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="Train RL agent on WAF-Brain Environment with RLLib")
@@ -253,7 +281,9 @@ if __name__ == '__main__':
                         default="./episodes/130920241043/181124_generated_rllib_ppo_rllib_seed_0000_100eps_200steps_exp_")
     parser.add_argument("--e_num_experiments",
                         default="20")
-        
+    parser.add_argument("--mode", default="read", help="generate/read recreate everything or just read the created csv with the results")
+    parser.add_argument("--mode_results_csv_path", default="./results/28072511_e_ppo_b_random_exp_")
+    parser.add_argument("--mode_num_experiments", default="13")
     args = parser.parse_args()
     print(f"Running with following CLI options: {args}")
     main(args)
