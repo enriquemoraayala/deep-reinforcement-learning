@@ -9,6 +9,7 @@ import ray
 import pandas as pd
 import gymnasium as gym
 import csv
+import debugpy
 # import ssl
 
 from ray.tune.registry import register_env
@@ -82,7 +83,7 @@ def train_oppe_and_estimate(args_, algo, dataset, columns_experiments):
     dr_estimator = DoublyRobust(
         policy=algo.get_policy(),
         gamma=0.99,
-        q_model_config={"type": FQETorchModel, "n_iters": 10},
+        q_model_config={"type": FQETorchModel, "n_iters": 1, "lr": 0.0005},
         )
 
     is_estimator = ImportanceSampling(
@@ -100,19 +101,19 @@ def train_oppe_and_estimate(args_, algo, dataset, columns_experiments):
     dm_estimator = DirectMethod(
         policy=algo.get_policy(),
         gamma=0.99,
-        q_model_config={"type": FQETorchModel, "n_iters": 100},
+        q_model_config={"type": FQETorchModel, "n_iters": 1, "lr": 0.0005},
     )
 
     # Train estimator's Q-model; only required for DM and DR estimators
     reader_train = JsonReader(args_.json_path_train + str(dataset))
     print('Training DM estimator')
-    for _ in range(1000):
+    for _ in range(100):
        batch = reader_train.next()
        print(dm_estimator.train(batch))
 
     reader_train = JsonReader(args_.json_path_train + str(dataset))
     print('Training DR estimator')
-    for _ in range(1000):
+    for _ in range(100):
        batch = reader_train.next()
        print(dr_estimator.train(batch))
        
@@ -128,7 +129,7 @@ def train_oppe_and_estimate(args_, algo, dataset, columns_experiments):
     # Compute off-policy estimates
     reader_eval = JsonReader(args_.json_path_eval + str(dataset))
     i = 0
-    for _ in range(300):
+    for _ in range(200):
         batch = reader_eval.next()
         print(dr_estimator.estimate(batch))
         row = pd.DataFrame([dr_estimator.estimate(batch)])
@@ -139,7 +140,7 @@ def train_oppe_and_estimate(args_, algo, dataset, columns_experiments):
         df_results_wis = pd.concat([df_results_wis, row], ignore_index=True)
         row = pd.DataFrame([dm_estimator.estimate(batch)])
         df_results_dm = pd.concat([df_results_dm, row], ignore_index=True)
-        if i % 20 == 0:
+        if i % 100 == 0:
             print(df_results_dr[i-10:i])
         i += 1
 
@@ -207,8 +208,9 @@ def main(args_):
   
 
     if args_.agent_type == 'ppo':
-        path_to_checkpoint = f'{args_.chechpoint_path}/' +\
-                             'ckpt_ppo_agent_torch_lunar_lander'
+        # path_to_checkpoint = f'{args_.chechpoint_path}/' +\
+        #                    'ckpt_ppo_agent_torch_lunar_lander'
+        path_to_checkpoint = args_.chechpoint_path
         algo = Algorithm.from_checkpoint(path_to_checkpoint)
     if args_.agent_type == 'dqn':
         path_to_checkpoint = f'{args_.chechpoint_path}/' +\
@@ -246,9 +248,9 @@ def main(args_):
     print("Result of the experiments:")
     print(result_exp)
     print("Behavior value function (Avg):")
-    print(real_value_func["\'b_real_value_function\'"].mean())
+    print(real_value_func["b_real_value_function"].mean())
     print("Evaluation value function (Avg):")
-    print(real_value_func[" \'e_real_value_function\'"].mean())
+    print(real_value_func["e_real_value_function"].mean())
 
 def load_and_calculate_results(columns_experiments, results, num_dataset, df, method):
     row = ["28071511", num_dataset, 1500, 200, method, df.v_behavior.mean(), df.v_target.mean()]
@@ -266,24 +268,30 @@ if __name__ == '__main__':
                         help="ppo/dqn/random")
     parser.add_argument("--beh_type", default="random",
                         help="ppo/dqn/random")
-    parser.add_argument("--chechpoint_path", default="./checkpoints/130920241043")
-    parser.add_argument("--e_model_version", default="130920241043")
-    parser.add_argument("--num_training_datasets", default="50")
-    parser.add_argument("--json_path_train", default="./episodes/130920241043/301124_generated_rllib_random_seed_0000_3500eps_200steps_exp_")
-    parser.add_argument("--json_path_eval", default="./episodes/130920241043/301124_generated_rllib_random_seed_0000_1500eps_200steps_exp_")
-    parser.add_argument("--num_beh_episodes", default="5000")
-    parser.add_argument("--num_eval_episodes", default="100")
+    parser.add_argument("--chechpoint_path", default="/opt/ml/code/checkpoints/300720251000")
+    parser.add_argument("--e_model_version", default="30072025100")
+    parser.add_argument("--num_training_datasets", default="1")
+    parser.add_argument("--json_path_train", default="/opt/ml/code/episodes/310720251600/310725_generated_rllib_ppo_rllib_seed_0000_2000eps_200steps_exp_")
+    parser.add_argument("--json_path_eval", default="/opt/ml/code/episodes/310720251600/310725_generated_rllib_ppo_rllib_seed_0000_200eps_200steps_exp_")
+    parser.add_argument("--num_beh_episodes", default="2000")
+    parser.add_argument("--num_eval_episodes", default="1000")
     parser.add_argument("--real_value_functions_csv",
-                        default="./results/real_value_functions.csv")
+                        default="/opt/ml/code/results/real_value_functions.csv")
     parser.add_argument("--b_policy_episodes_path",
-                        default="./episodes/generated_rllib_random_5000eps_200steps_030524")
+                        default="/opt/ml/code/episodes/310720251600/010825_generated_rllib_ppo_rllib_seed_0000_1000eps_200steps_exp_0")
     parser.add_argument("--e_policy_episodes_path",
-                        default="./episodes/130920241043/181124_generated_rllib_ppo_rllib_seed_0000_100eps_200steps_exp_")
+                        default="/opt/ml/code/episodes/300720251000/010825_generated_rllib_ppo_rllib_seed_0000_1000eps_200steps_exp_")
     parser.add_argument("--e_num_experiments",
-                        default="20")
-    parser.add_argument("--mode", default="read", help="generate/read recreate everything or just read the created csv with the results")
-    parser.add_argument("--mode_results_csv_path", default="./results/28072511_e_ppo_b_random_exp_")
-    parser.add_argument("--mode_num_experiments", default="13")
+                        default="1")
+    parser.add_argument("--mode", default="generate", help="generate/read recreate everything or just read the created csv with the results")
+    parser.add_argument("--mode_results_csv_path", default="/opt/ml/code/results/28072511_e_ppo_b_random_exp_")
+    parser.add_argument("--mode_num_experiments", default="10")
+    parser.add_argument("--debug", help = "yes=1/no=0", default="0")
     args = parser.parse_args()
     print(f"Running with following CLI options: {args}")
+    if args.debug == "1":
+        # Escucha en el puerto 5678 (puedes cambiarlo)
+        debugpy.listen(("0.0.0.0", 5678))
+        print("Esperando debugger de VS Code para conectar...")
+        debugpy.wait_for_client()
     main(args)

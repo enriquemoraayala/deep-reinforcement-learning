@@ -14,7 +14,7 @@ import numpy as np
 import math
 from dqn_agent import Agent, RandomAgent
 from datetime import datetime
-
+import ray
 import os
 import imageio
 from PIL import Image, ImageDraw, ImageFont
@@ -159,6 +159,7 @@ def render_agent(args):
         agent = Agent(num_states, num_actions)
         agent.load_from_checkpoint(args.model_checkpoint_path, device)
     elif args.agent_type == 'ppo_rllib':
+        # agent = Algorithm.restore(checkpoint_path=args.model_checkpoint_path)
         agent = Algorithm.from_checkpoint(args.model_checkpoint_path)
     elif args.agent_type == 'random':
         agent = RandomAgent(num_actions, 1234)
@@ -178,22 +179,27 @@ if __name__ == '__main__':
     parser.add_argument("--env", type=str,
                         help="Path to configuration file of the envionment.",
                         default='LunarLander-v2')
-    parser.add_argument("--agent_type", help = "dqn/random/ppo_rllib", default="random")
-    parser.add_argument("--render", help = "yes/no", default="no")
+    parser.add_argument("--agent_type", help = "dqn/random/ppo_rllib", default="ppo_rllib")
+    parser.add_argument("--render", help = "yes/no", default="yes")
     parser.add_argument("--max_ep", help = "0/max_ep", default="200")
     parser.add_argument("--total_episodes", help = "", default="1500")
-    parser.add_argument("--total_datasets_to_generate", help = "", default="50")
+    parser.add_argument("--total_datasets_to_generate", help = "", default="5")
     parser.add_argument("--env_seed", help = "0000 -> no seed", default="0000")
-    parser.add_argument("--output", help = "path", default="/home/enrique/repositories/deep-reinforcement-learning/dqn-atari/episodes/ppo_rllib_130920241043")
+    parser.add_argument("--output", help = "path", 
+                        # default="/home/enrique/repositories/deep-reinforcement-learning/dqn-atari/episodes/ppo_rllib_130920241043"
+                        default="/opt/ml/output"
+                        )
     parser.add_argument("--model_checkpoint_path", type=str,
                         help="Path to the model checkpoint",
                         # default='/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/checkpoints/checkpoint_lunar_dqn_150424.pth'
-                        default='/home/enrique/repositories/deep-reinforcement-learning/dqn-atari/checkpoints/130920241043/ckpt_ppo_agent_torch_lunar_lander'
+                        # default='/home/enrique/repositories/deep-reinforcement-learning/dqn-atari/checkpoints/130920241043/ckpt_ppo_agent_torch_lunar_lander'
+                        default='/opt/ml/model'
                         )
     parser.add_argument("--output_episodes", type=str,
                         default='/home/enrique/repositories/deep-reinforcement-learning/dqn-atari/episodes/130920241043'
                         )
     args = parser.parse_args()
     print(f"Running with following CLI options: {args}")
+    print(ray.__version__)
     
     render_agent(args)
