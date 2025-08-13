@@ -88,10 +88,10 @@ if __name__ == '__main__':
         description="Visualize RLLIB Json file with episodes")
     parser.add_argument("--json_file", type=str,
                         help="Path to json file with the episodes.",
-                        default="/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/episodes/generated_rllib_ppo_rllib_seed_0000_10eps_0steps_130924")
+                        default="/opt/ml/code/episodes/300720251000/100825_generated_rllib_ppo_rllib_seed_0000_1eps_200steps_exp_0")
     parser.add_argument("--output_file",
-                        default="/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/episodes/generated_rllib_ppo_rllib_seed_0000_10eps_0steps_130924")
-    parser.add_argument("--num_eps", default="10")
+                        default="/opt/ml/code/output_gifs/300720251000/100825_generated_rllib_ppo_rllib_seed_0000_1eps_200steps_exp_0")
+    parser.add_argument("--num_eps", default="5")
     parser.add_argument("--env_seed", default="0000")
     args = parser.parse_args()
     print(f"Running with following CLI options: {args}")

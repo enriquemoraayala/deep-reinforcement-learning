@@ -188,10 +188,10 @@ if __name__ == '__main__':
     parser.add_argument("--agent_type", help = "dqn/random/ppo_rllib", default="ppo_rllib")
     parser.add_argument("--render", help = "yes/no", default="no")
     parser.add_argument("--max_ep", help = "0 is max_ep", default="200")
-    parser.add_argument("--total_episodes", help = "", default="1000")
+    parser.add_argument("--total_episodes", help = "", default="1")
     parser.add_argument("--total_datasets_to_generate", help = "", default="1")
     parser.add_argument("--env_seed", help = "0000 -> no seed", default="0000")
-    parser.add_argument("--debug", help = "yes=1/no=0", default="0")
+    parser.add_argument("--debug", help = "yes=1/no=0", default="1")
     parser.add_argument("--output", help = "path", 
                         # default="/home/enrique/repositories/deep-reinforcement-learning/dqn-atari/episodes/ppo_rllib_130920241043"
                         default="/opt/ml/code/output_gifs/310720251600_"
@@ -208,7 +208,7 @@ if __name__ == '__main__':
                         )
     args = parser.parse_args()
 
-    if args.debug == 1:
+    if args.debug == '1':
         # Escucha en el puerto 5678 (puedes cambiarlo)
         debugpy.listen(("0.0.0.0", 5678))
         print("Esperando debugger de VS Code para conectar...")

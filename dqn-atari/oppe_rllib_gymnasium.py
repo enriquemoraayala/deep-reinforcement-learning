@@ -131,7 +131,6 @@ def train_oppe_and_estimate(args_, algo, dataset, columns_experiments):
     i = 0
     for _ in range(200):
         batch = reader_eval.next()
-        print(dr_estimator.estimate(batch))
         row = pd.DataFrame([dr_estimator.estimate(batch)])
         df_results_dr = pd.concat([df_results_dr, row], ignore_index=True)
         row = pd.DataFrame([is_estimator.estimate(batch)])
