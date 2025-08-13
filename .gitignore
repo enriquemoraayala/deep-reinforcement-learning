@@ -5,6 +5,8 @@
 *.pyc
 .vscode/settings.json
 *.log
+*.pt
+*.bin
 dqn-atari/roms/.DS_Store
 dqn-atari/roms/HC ROMS.zip
 dqn-atari/roms/HC ROMS/BY ALPHABET (PAL)/======== ROM HUNTER'S HARMONY CART PAL 1977-1992 VCS ROMS COLLECTION V4 ========.txt
@@ -4967,3 +4969,7 @@ DDPG-Reacher-Unity-Agent/Reacher.app/Contents/Resources/ScreenSelector.nib/keyed
 DDPG-Reacher-Unity-Agent/Reacher.app/Contents/Resources/unity default resources
 DDPG-Reacher-Unity-Agent/Reacher.app/Contents/Resources/UnityPlayerIcon.png
 dqn-atari/checkpoints.zip
+dqn-atari/episodes/.amlignore
+dqn-atari/episodes/.amlignore.amltmp
+dqn-atari/fqe_checkpoints/fqe_epoch_5.pt
+oppe/roms/HC ROMS/BY ALPHABET/A-G/Activision Decathlon, The \[fixed].bin

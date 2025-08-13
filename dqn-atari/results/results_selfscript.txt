@@ -1,0 +1,14 @@
+Avg_Expecting_Return (BEH_POLICY) Value - RLLIB Generated episodes: -12.038 - STD  23.548
+Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes:  49.438 - STD  13.103
+Calculating IS for 2000
+
+=======  RESULTADOS OPPE with Custom Library   =======
+Ordinary Importance Sampling (IS Custom) Value: 1.5002036039387728e-281
+checkpoint = torch.load(FQE_CHECKPOINT_PATH + '/fqe_epoch_80.pt')
+Se cargó el checkpoint desde ./fqe_checkpoints, entrenadas 80 épocas con Avg. Loss 2.8818980979652298
+
+Valor esperado estimado DM de la política PPO (retorno promedio inicial): -5.817 - STD: 18.805
+
+Valor esperado estimado DR de la política PPO (retorno promedio inicial): -12.206 - STD: 22.431
+Direct Method (DM) with RLLIB V_ expected estimation -296.87896728515625 and STD 120.73797215513675
+Double Roboust (DR) with RLLIB V_ expected estimation -97.35513527687326 and STD 76.6586105594
