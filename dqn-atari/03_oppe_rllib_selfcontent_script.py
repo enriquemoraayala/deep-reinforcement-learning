@@ -325,9 +325,6 @@ def oppe():
     print(f'Direct Method (DM) with RLLIB V_ expected estimation {mean(dm_ests)} and STD {stdev(dm_ests)}')
     print(f'Double Roboust (DR) with RLLIB V_ expected estimation {mean(dr_ests)} and STD {stdev(dr_ests)}')
 
-    
-
-
-
+  
 if __name__ == '__main__':
     oppe()
