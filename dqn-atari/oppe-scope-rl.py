@@ -21,6 +21,19 @@ from scope_rl.ope.discrete import PerDecisionImportanceSampling as PDIS, DoublyR
 
 from oppe_utils import load_checkpoint, load_json_to_df, calculate_value_function, calculate_return, QNetwork
 
+from torch.nn.utils import remove_weight_norm
+
+def strip_weight_norm_from_rllib_policy(policy) -> None:
+    """Elimina weight_norm de todas las subcapas del modelo Torch de una PPOTorchPolicy."""
+    model = getattr(policy, "model", None)
+    if model is None:
+        raise TypeError("La policy de RLlib no tiene atributo .model")
+    # model es TorchModelV2 y hereda de nn.Module ⇒ sí tiene .modules()
+    for m in model.modules():
+        try:
+            remove_weight_norm(m)
+        except Exception:
+            pass  # ignorar capas sin weight_norm
 
 
 # Envolver la política PPO en una clase con interfaz esperada
@@ -68,6 +81,7 @@ EVAL_EPISODES_JSON = '/opt/ml/code/episodes/300720251000/050825_generated_rllib_
 
 eval_agent = Algorithm.from_checkpoint(EVAL_CHECKPOINT_PATH)
 target_policy = eval_agent.get_policy()  # Obtenemos la política (por defecto "default_policy")
+target_policy = strip_weight_norm_from_rllib_policy(target_policy)
 
 # Cargar el dataset offline en un DataFrame (ya disponible como beh_df, o se lee de un archivo)
 # Suponemos que beh_df tiene columnas: 'ep', 'obs', 'action', 'reward', 'done', 'action_prob'
@@ -83,12 +97,12 @@ reader_target = JsonReader(EVAL_EPISODES_JSON)
 n_trajectories_target = 2000
 n_trajectories_beh = 2000
 beh_eps_df = load_json_to_df(reader_beh, n_trajectories_beh)
-beh_test_df = load_json_to_df(reader_beh_test, n_trajectories_beh)
-target_eps_df = load_json_to_df(reader_target, n_trajectories_target)
-beh_expected_return, beh_return_stdev = calculate_value_function(beh_eps_df, 0.99)
-target_expected_return, target_return_stdev = calculate_value_function(target_eps_df, 0.99)
-print(f"Avg_Expecting_Return (BEH_POLICY) Value - RLLIB Generated episodes: {beh_expected_return: .3f} - STD {beh_return_stdev: .3f}")
-print(f"Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes: {target_expected_return: .3f} - STD {target_return_stdev: .3f}")
+# beh_test_df = load_json_to_df(reader_beh_test, n_trajectories_beh)
+# target_eps_df = load_json_to_df(reader_target, n_trajectories_target)
+# beh_expected_return, beh_return_stdev = calculate_value_function(beh_eps_df, 0.99)
+# target_expected_return, target_return_stdev = calculate_value_function(target_eps_df, 0.99)
+# print(f"Avg_Expecting_Return (BEH_POLICY) Value - RLLIB Generated episodes: {beh_expected_return: .3f} - STD {beh_return_stdev: .3f}")
+# print(f"Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes: {target_expected_return: .3f} - STD {target_return_stdev: .3f}")
 
 
 # Determinar dimensiones y parámetros del entorno
@@ -121,7 +135,7 @@ current = 0
 for ep, ep_data in beh_eps_df.groupby("ep"):
     ep_len = len(ep_data)
     # Copiar datos reales del episodio
-    state_arr[current: current+ep_len]   = np.stack(ep_data["obs"].values)
+    state_arr[current: current+ep_len]   = np.concatenate([np.asarray(t).reshape(1, 8) for t in ep_data['obs'].values], axis=0)
     action_arr[current: current+ep_len]  = ep_data["action"].to_numpy()
     reward_arr[current: current+ep_len]  = ep_data["reward"].to_numpy()
     pscore_arr[current: current+ep_len]  = ep_data["action_prob"].to_numpy()
@@ -139,7 +153,10 @@ logged_dataset = {
     "step_per_trajectory": int(max_steps),
     "state_dim": int(state_dim),
     "action_type": 'discrete',           # "discrete" para LunarLander-v3
-    "n_actions": int(n_actions),
+    "n_actions": 4,
+    "action_dim": None,               # <-- Discreto: None
+    "action_keys": None,             # <-- Discreto: None (no lista de dims)
+    "action_meaning": None,
     "state": state_arr,
     "action": action_arr,
     "reward": reward_arr,
@@ -151,7 +168,9 @@ logged_dataset = {
     "action_meaning": None
 }
 
+
 ppo_policy = PPOPolicyWrapperScopeRL(target_policy)
+
 
 # Crear input para OPE combinando los datos offline con la política PPO
 prep = CreateOPEInput(env=env)

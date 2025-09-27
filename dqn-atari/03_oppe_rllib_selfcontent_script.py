@@ -239,14 +239,14 @@ def train_rllib_dm_dr_models(BEH_EPISODES_JSON_TRAIN, reader_beh_train, dr_estim
 
 def oppe():
 
-    BEH_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/310720251600"
-    EVAL_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/300720251000"
+    BEH_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/120820251600"
+    EVAL_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/130820251600"
     FQE_CHECKPOINT_PATH = "./fqe_checkpoints"
     
-    BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/310720251600/310725_generated_rllib_ppo_rllib_seed_0000_2000eps_200steps_exp_0'
+    BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/120820251600/140825_generated_rllib_ppo_rllib_seed_0000_1000eps_200steps_exp_0'
     BEH_EPISODES_JSON_TEST = '/opt/ml/code/episodes/310720251600/310725_generated_rllib_ppo_rllib_seed_0000_2000eps_200steps_exp_7'
-    BEH_EPISODES_JSON = '/opt/ml/code/episodes/310720251600/010825_generated_rllib_ppo_rllib_seed_0000_1000eps_200steps_exp_0'
-    EVAL_EPISODES_JSON = '/opt/ml/code/episodes/300720251000/050825_generated_rllib_ppo_rllib_seed_0000_1000eps_200steps_exp_0'
+    BEH_EPISODES_JSON = '/opt/ml/code/episodes/120820251600/140825_generated_rllib_ppo_rllib_seed_0000_1000eps_200steps_exp_0'
+    EVAL_EPISODES_JSON = '/opt/ml/code/episodes/130820251600/140825_generated_rllib_ppo_rllib_seed_0000_1000eps_200steps_exp_0'
     # EVAL_EPISODES_JSON = '/opt/ml/code/episodes/300720251000/100825_generated_rllib_ppo_rllib_seed_0000_50eps_200steps_exp_0'
     beh_agent = load_checkpoint(BEH_CHECKPOINT_PATH)
     eval_agent = load_checkpoint(EVAL_CHECKPOINT_PATH)
