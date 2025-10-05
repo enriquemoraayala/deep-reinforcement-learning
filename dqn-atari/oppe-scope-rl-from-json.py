@@ -4,6 +4,7 @@ import json
 import numpy as np
 import pandas as pd
 import debugpy
+import torch
 from typing import Any, Tuple, Iterable
 from collections import defaultdict
 from dataclasses import dataclass
@@ -17,7 +18,11 @@ from ray.rllib.offline.json_reader import JsonReader
 from scope_rl.ope import CreateOPEInput, OffPolicyEvaluation
 from scope_rl.ope.discrete import DirectMethod as DM, SelfNormalizedPDIS as SNPDIS, SelfNormalizedDR as SNDR
 from scope_rl.policy.head import BaseHead
+from scope_rl.dataset import SyntheticDataset
 
+from typing import List, Dict, Optional, Union, Sequence
+import numpy as np
+import pandas as pd
 
 debug = 1
 if debug == 1:
@@ -155,6 +160,10 @@ def load_rllib_logged_dataset(path: str) -> List[Dict[str, np.ndarray]]:
                      "un dict con 'batches', o una lista de episodios.")
 
 
+import numpy as np
+import pandas as pd
+from typing import Dict, Optional, Sequence, Union
+
 def df_to_logged_dataset(
     df: pd.DataFrame,
     *,
@@ -165,203 +174,511 @@ def df_to_logged_dataset(
     action_col: str = "action",
     reward_col: str = "reward",
     done_col: str = "done",
-    pscore_col: Optional[str] = "action_prob",  # prob(a_t | s_t) del behavior policy (si la tienes)
-) -> List[Dict[str, np.ndarray]]:
+    truncated_col: Optional[str] = None,        # si tienes "truncated" (terminación por límite de pasos)
+    pscore_col: Optional[str] = "action_prob",  # prob(a_t | s_t)
+    alt_logp_col: Optional[str] = "action_logp",
+    behavior_policy: str = "behavior_policy",
+    dataset_id: int = 0,
+    # metadatos / formato
+    action_type: Optional[str] = None,          # {"discrete","continuous"} o None para inferir
+    n_actions: Optional[int] = None,            # si discrete; intenta inferir si None
+    one_hot_discrete: bool = False,             # para obtener acción (size, n_actions) en discreto
+    action_keys: Optional[Sequence[str]] = None,
+    action_meaning: Optional[Dict[int, Union[int,str]]] = None,
+    state_keys: Optional[Sequence[str]] = None,
+    float_dtype = np.float32,
+    eps: float = 1e-12,
+    # NUEVO: filtro de longitud mínima de episodio
+    min_steps: int = 200,
+) -> Dict[str, Union[int, str, np.ndarray, Dict]]:
+    """Convierte un DataFrame (una fila por (episodio, paso)) al esquema de logged_dataset de SCOPE-RL.
+    
+    Solo incluye episodios con longitud >= min_steps (por defecto, 200).
     """
-    Convierte un DF con una fila por (episodio, paso) en una lista de episodios:
-      {'state','action','reward','next_state','done',('pscore')}
-    - Asume que obs/next_state pueden ser arrays/listas; se hace stack por episodio.
-    - Si next_state tiene nulos o no cuadra, se deriva por desplazamiento de state.
-    """
-    assert {ep_col, step_col, obs_col, action_col, reward_col, done_col}.issubset(df.columns), \
-        "Faltan columnas obligatorias en el DataFrame."
+    required = {ep_col, step_col, obs_col, action_col, reward_col, done_col}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(f"Faltan columnas obligatorias: {sorted(missing)}")
 
-    episodes = []
-    for ep, g in df.sort_values([ep_col, step_col]).groupby(ep_col):
-        # Helper para apilar en np.array con conversión robusta
-        def to_array(series):
-            vals = series.to_list()
-            # Si los elementos ya son arrays/listas/escalares, normalizamos:
-            vals = [np.asarray(v) if not isinstance(v, (np.ndarray,)) else v for v in vals]
-            # Si son escalares -> array 1D; si son vectores -> stack
-            try:
-                return np.stack(vals)
-            except Exception:
-                # Si hay mezcla de formas, forzamos np.array con dtype=object (último recurso)
-                return np.array(vals, dtype=object)
+    # Orden estable por (ep, step)
+    df_sorted = df.sort_values([ep_col, step_col], kind="mergesort")
 
-        S = to_array(g[obs_col])
-        A = to_array(g[action_col])
-        R = np.asarray(g[reward_col].to_list(), dtype=float)
-        D = np.asarray(g[done_col].to_list(), dtype=bool)
+    # Utilidades de apilado robusto
+    def to_arr_list(series: pd.Series):
+        return [np.asarray(v) for v in series.to_list()]
 
-        # next_state: usar el del DF si está completo y sin nulos; si no, derivarlo
-        NS_available = next_obs_col in g and g[next_obs_col].notna().all()
-        if NS_available:
-            NS = to_array(g[next_obs_col])
-            shapes_ok = (hasattr(NS, "shape") and hasattr(S, "shape") and len(NS) == len(S))
-        else:
-            shapes_ok = False
+    def stack_consistent(arrs, name):
+        # Escalares -> (T,)
+        if all(a.ndim == 0 for a in arrs):
+            return np.asarray(arrs, dtype=float_dtype)
+        # 1D homogéneo -> (T, d)
+        if all(a.ndim == 1 for a in arrs):
+            shapes = {a.shape for a in arrs}
+            if len(shapes) != 1:
+                raise ValueError(f"{name}: formas 1D inconsistentes: {shapes}")
+            return np.stack(arrs).astype(float_dtype)
+        # kD homogéneo -> (T, ...)
+        shapes = {a.shape for a in arrs}
+        if len(shapes) == 1:
+            return np.stack(arrs).astype(float_dtype)
+        raise ValueError(f"{name}: mezcla de formas incompatible: {[(i,a.shape) for i,a in enumerate(arrs)]}")
 
-        if not shapes_ok:
-            # Derivar por desplazamiento: NS[t] = S[t+1], y el último se duplica
-            if isinstance(S, np.ndarray) and len(S) >= 1 and S.dtype != object:
-                NS = np.vstack([S[1:], S[-1:]])
+    # Recoger por episodios (filtrando los cortos)
+    episodes_S, episodes_A, episodes_R, episodes_done = [], [], [], []
+    episodes_trunc = []
+    episodes_len = []
+
+    pscore_list = []
+
+    # Inferir action_type si no se indica
+    inferred_action_type = None
+
+    for ep, g in df_sorted.groupby(ep_col, sort=False):
+        # Filtrado por longitud mínima del episodio
+        if len(g) < min_steps:
+            continue
+
+        S = stack_consistent(to_arr_list(g[obs_col]), "state")
+        A_list = to_arr_list(g[action_col])
+
+        # Inferir tipo de acción por episodio si no viene dado
+        if action_type is None:
+            if all(a.ndim == 0 for a in A_list):
+                inferred_action_type = inferred_action_type or "discrete"
             else:
-                # Versión robusta también para dtype=object
-                NS = np.array(list(S[1:]) + [S[-1]], dtype=object)
+                inferred_action_type = inferred_action_type or "continuous"
 
-        ep_dict = {"state": S, "action": A, "reward": R, "next_state": NS, "done": D}
+        # Apilar acción con formato provisional
+        if all(a.ndim == 0 for a in A_list):
+            A = np.asarray(A_list)  # (T,)
+        else:
+            A = stack_consistent(A_list, "action")  # (T, d_a)
 
+        R = np.asarray(g[reward_col].to_list(), dtype=float_dtype)
+        D = np.asarray(g[done_col].to_list(), dtype=bool).copy()
+        if D.size > 0:
+            D[-1] = True  # fuerza que el episodio termine, como estamos truncando, sería casualidad que 
+                          # el episodio acabara en el paso 200...
+
+        # terminal: True en el último paso SIEMPRE (marca el corte de trayectoria).
+        # 'done' distinguirá terminación ambiental vs timeout.
+        Tm = np.zeros_like(D, dtype=bool)
+        if len(Tm) > 0:
+            Tm[-1] = True
+
+        # Si tienes una columna de "truncated", úsala para derivar timeouts externamente si lo necesitas,
+        # pero aquí mantenemos "terminal" como bandera de fin de trayectoria.
+        # (SCOPE-RL suele derivar timeouts = terminal & ~done internamente)
+
+        # pscore episodio
         if pscore_col and pscore_col in g.columns:
-            P = np.asarray(g[pscore_col].to_list())
-            # Si P viene como prob escalar de la acción tomada, está perfecto para IS/DR.
-            ep_dict["pscore"] = P
+            P = np.asarray(g[pscore_col].to_list(), dtype=float_dtype)
+        elif alt_logp_col and alt_logp_col in g.columns:
+            P = np.exp(np.asarray(g[alt_logp_col].to_list(), dtype=float_dtype))
+        else:
+            P = None
+        if P is not None:
+            P = np.clip(P, eps, 1.0).astype(float_dtype)
+            if np.any(~np.isfinite(P)):
+                raise ValueError(f"Episodio {ep}: pscore contiene NaN/Inf")
 
-        episodes.append(ep_dict)
+        episodes_S.append(S)
+        episodes_A.append(A)
+        episodes_R.append(R)
+        episodes_done.append(D)
+        episodes_trunc.append(Tm)
+        episodes_len.append(len(R))
+        pscore_list.append(P)
 
-    return episodes
+    # Si no queda ningún episodio tras el filtro, devolvemos un dataset vacío consistente
+    if len(episodes_len) == 0:
+        return {
+            "size": 0,
+            "n_trajectories": 0,
+            "step_per_trajectory": None,
+            "action_type": (action_type or "discrete"),
+            "n_actions": None if (action_type or "discrete") != "discrete" else None,
+            "action_dim": None if (action_type or "discrete") == "discrete" else None,
+            "action_keys": list(action_keys) if action_keys is not None else None,
+            "action_meaning": dict(action_meaning) if action_meaning is not None else None,
+            "state_dim": None,
+            "state_keys": list(state_keys) if state_keys is not None else None,
+            "state": np.array([], dtype=float_dtype).reshape(0, 0),
+            "action": np.array([], dtype=float_dtype),
+            "reward": np.array([], dtype=float_dtype),
+            "done": np.array([], dtype=bool),
+            "terminal": np.array([], dtype=bool),
+            "info": None,
+            "pscore": None,
+            "behavior_policy": behavior_policy,
+            "dataset_id": int(dataset_id),
+        }
+
+    # Determinar action_type final
+    action_type_final = action_type or (inferred_action_type or "discrete")
+
+    # Comprobar si hay longitud fija (para step_per_trajectory)
+    unique_lengths = sorted(set(episodes_len))
+    if len(unique_lengths) == 1:
+        step_per_trajectory = int(unique_lengths[0])
+    else:
+        step_per_trajectory = None  # longitudes variables; dejamos None y confiamos en done/terminal
+
+    n_trajectories = len(episodes_len)
+    size = int(np.sum(episodes_len))
+
+    # Construir tensores aplanados
+    def flatten_list_of_arrays(lst):
+        return np.concatenate(lst, axis=0) if len(lst) else np.array([], dtype=float_dtype)
+
+    # Estado: normalizamos a 2D (size, d_s)
+    S_flat = flatten_list_of_arrays([s if s.ndim >= 1 else s.reshape(-1, 1) for s in episodes_S])
+    if S_flat.ndim == 1:
+        S_flat = S_flat.reshape(-1, 1)
+    state_dim = int(S_flat.shape[1]) if S_flat.size else None
+
+    # Acción
+    if action_type_final == "discrete":
+        if any(a.ndim > 1 for a in episodes_A):
+            raise ValueError("Se infirió 'discrete' pero hay acciones vectoriales; fija action_type='continuous'.")
+        A_flat_int = flatten_list_of_arrays([a.astype(int) for a in episodes_A])  # (size,)
+        if n_actions is None:
+            n_actions = int(A_flat_int.max()) + 1 if A_flat_int.size else None
+
+        if one_hot_discrete and n_actions is not None:
+            A_flat = np.eye(n_actions, dtype=float_dtype)[A_flat_int]
+        else:
+            A_flat = A_flat_int  # (size,)
+        action_dim = None
+    else:
+        # continuous
+        A_flat = flatten_list_of_arrays([a if a.ndim >= 1 else a.reshape(-1, 1) for a in episodes_A])
+        if A_flat.ndim == 1:
+            A_flat = A_flat.reshape(-1, 1)
+        action_dim = int(A_flat.shape[1]) if A_flat.size else None
+        n_actions = None
+
+    R_flat = flatten_list_of_arrays(episodes_R).astype(float_dtype)
+    done_flat = flatten_list_of_arrays([d.astype(bool) for d in episodes_done]).astype(bool)
+    term_flat = flatten_list_of_arrays([t.astype(bool) for t in episodes_trunc]).astype(bool)
+
+    # pscore
+    if any(p is not None for p in pscore_list):
+        P_list = []
+        for T, P in zip(episodes_len, pscore_list):
+            if P is None:
+                P = np.full(T, np.nan, dtype=float_dtype)
+            P_list.append(P)
+        pscore_flat = np.concatenate(P_list).astype(float_dtype)
+    else:
+        pscore_flat = None
+
+    # Claves opcionales
+    action_keys = list(action_keys) if action_keys is not None else None
+    state_keys = list(state_keys) if state_keys is not None else None
+    action_meaning = dict(action_meaning) if action_meaning is not None else None
+
+    # Ensamblar diccionario final (siguiendo el orden/documentación)
+    logged_dataset: Dict[str, Union[int, str, np.ndarray, Dict]] = {
+        "size": size,
+        "n_trajectories": n_trajectories,
+        "step_per_trajectory": step_per_trajectory,   # puede ser None si longitudes variables
+        "action_type": action_type_final,             # "discrete" | "continuous"
+        "n_actions": n_actions,                       # solo para discreto
+        "action_dim": action_dim,                     # solo para continuo
+        "action_keys": action_keys,                   # opcional
+        "action_meaning": action_meaning,             # opcional
+        "state_dim": state_dim,
+        "state_keys": state_keys,                     # opcional
+        "state": S_flat,                              # (size, d_s)
+        "action": A_flat,                             # (size,) o (size,n_actions)/(size,d_a)
+        "reward": R_flat,                             # (size,)
+        "done": done_flat,                            # (size,)
+        "terminal": term_flat,                        # (size,)
+        "info": None,                                 # opcional: dict si lo tienes
+        "pscore": pscore_flat,                        # (size,) con NaN donde no haya
+        "behavior_policy": behavior_policy,
+        "dataset_id": int(dataset_id),
+    }
+
+    return logged_dataset
+
+
 
 # ----------------------------
 # 2) Adaptador RLlib -> SCOPE-RL (discreto, determinista)
 # ----------------------------
-# helper para asegurar que Scope-rl envia algo iterable a la clase
-def _iter_states(x) -> Tuple[Iterable[Any], int]:
+# ========= Helpers =========
+def _iter_states(x: np.ndarray) -> Tuple[Iterable, int]:
+    arr = np.asarray(x)
+    if arr.ndim == 1:
+        return [arr], 1
+    return arr, arr.shape[0]
+
+def _softmax_stable(logits: np.ndarray) -> np.ndarray:
+    logits = logits - logits.max(axis=-1, keepdims=True)
+    exp = np.exp(logits)
+    return exp / exp.sum(axis=-1, keepdims=True)
+
+
+# ========= Shims para d3rlpy-like API =========
+class _ImplShim:
+    """Backend mínimo para satisfacer expectativas de SCOPE-RL/d3rlpy."""
+    def __init__(self, adapter: "RLLibPolicyAdapter"):
+        self._adapter = adapter
+        # d3rlpy suele usar torch.device en impl.device
+        try:
+            self.device = torch.device(adapter.device)
+        except Exception:
+            self.device = adapter.device  # mantiene el string "cpu"/"cuda" si no es torch.device
+
+    @torch.no_grad()
+    def predict_value(self, x: Union[np.ndarray, Dict]) -> np.ndarray:
+        # Reenvía a la lógica del adapter
+        return self._adapter.predict_value(x)
+
+
+class _ConfigShim:
+    """Config mínimo; d3rlpy suele consultar gamma desde config."""
+    def __init__(self, gamma: float):
+        self.gamma = float(gamma)
+
+
+# ========= Adapter: RLlib -> interfaz mínima esperada por SCOPE-RL =========
+class RLLibPolicyAdapter:
     """
-    Normaliza x en un iterable de estados y devuelve también n.
-    Soporta:
-      - dict con 'state'/'obs'/'observation'
-      - list/tuple de estados
-      - np.ndarray (cualquier dtype, incluido object)
-      - un único estado (se envuelve como lista de 1)
+    Adapter mínimo para exponer atributos/funciones que SCOPE-RL espera en `base_policy`.
+    Envuelve una PPOTorchPolicy (u otra Policy discreta de RLlib).
     """
-    # dict -> intenta extraer el array/lista de estados
-    if isinstance(x, dict):
-        for k in ("state", "obs", "observation"):
-            if k in x:
-                states = x[k]
-                break
+
+    def __init__(
+        self,
+        rllib_policy: Any,
+        observation_shape: Any,
+        action_size: int,
+        gamma: float = 0.99,
+        device: str = "cpu",
+    ):
+        self._rllib_policy = rllib_policy
+        self._observation_shape = observation_shape
+        self._action_size = int(action_size)
+        self._gamma = float(gamma)
+        self._device = device
+
+        # Shims que SCOPE-RL puede buscar:
+        self.impl = _ImplShim(self)       # <- **clave**: añade `.impl`
+        self.config = _ConfigShim(gamma)  # <- opcional pero útil
+
+    # --- propiedades tipo d3rlpy ---
+    @property
+    def observation_shape(self) -> Tuple[int, ...]:
+        return self._observation_shape
+
+    @property
+    def action_size(self) -> int:
+        return self._action_size
+
+    @property
+    def gamma(self) -> float:
+        return self._gamma
+
+    @property
+    def device(self) -> str:
+        return self._device
+
+    # --- opcional: valor de estado (útil para algunos caminos de SCOPE-RL/DM) ---
+    @torch.no_grad()
+    def predict_value(self, x: Union[np.ndarray, Dict]) -> np.ndarray:
+        """
+        Devuelve V(s) usando la value head de PPO si está disponible.
+        RLlib expone 'vf_preds' en extra cuando full_fetch=True (para PPO).
+        """
+        # normalizamos a batch
+        if isinstance(x, dict):
+            first = next(iter(x.values()))
+            is_single = np.asarray(first).ndim == 1
+            batch = {k: (np.expand_dims(np.asarray(v), 0) if is_single else np.asarray(v)) for k, v in x.items()}
         else:
-            # no hay clave conocida: toma el primer valor
-            states = next(iter(x.values()))
-    else:
-        states = x
+            states_iter, n = _iter_states(np.asarray(x))
+            batch = np.stack(list(states_iter), axis=0) if n > 1 else np.asarray(list(states_iter)[0])[None, ...]
 
-    # convertir a iterable y obtener n
-    if isinstance(states, (list, tuple)):
-        return states, len(states)
+        # pedimos predicciones con full_fetch para obtener vf_preds
+        _, _, extra = self._rllib_policy.compute_actions(batch, explore=False, full_fetch=True)
+        vf = extra.get("vf_preds", None)
+        if vf is None:
+            # Fallback: si no está, devolvemos ceros y dejamos que FQE/DR haga su trabajo
+            n = batch.shape[0] if not isinstance(batch, dict) else len(next(iter(batch.values())))
+            return np.zeros((n,), dtype=np.float32)
+        if isinstance(vf, torch.Tensor):
+            vf = vf.cpu().numpy()
+        return np.asarray(vf).reshape(-1)
 
-    if isinstance(states, np.ndarray):
-        if states.ndim == 0:
-            # escalar -> un solo estado
-            return [states.item()], 1
-        if states.ndim == 1 and states.dtype == object:
-            # vector de objetos (cada elemento puede ser un dict o array)
-            return list(states), len(states)
-        # matriz (n, ...) -> iterar filas
-        return (states[i] for i in range(states.shape[0])), states.shape[0]
-
-    # caso “un solo estado” (dict/array/lo que sea)
-    return [states], 1
-
-
+    # --- opcional: Q(s,a) si alguna ruta lo pidiese (normalmente no es necesario para OPE) ---
+    def predict_q(self, x: Union[np.ndarray, Dict]) -> Optional[np.ndarray]:
+        """
+        PPO no aprende un Q explícito.
+        Devolvemos None; FQE se encargará de estimar Q^π.
+        """
+        return None
 
 @dataclass
-class RLlibGreedyHead(BaseHead):
-    """Adaptador mínimo para usar una policy de RLlib como evaluation_policy en SCOPE-RL (acción discreta)."""
-    name: str = "rllib_greedy"
-    rllib_policy: Any = None         # instancia de RLlib Policy (p. ej. algo.get_policy())
-    action_size: int = None          # n° de acciones discretas
+class RLlibCategoricalHead(BaseHead):
+    """
+    Head estocástico para políticas discretas de RLlib (p.ej. PPOTorchPolicy).
+    Expone pi(a|s), muestreo, greedy, y pscore coherentes con SCOPE-RL.
+    """
+    name: str = "rllib_categorical"
+    rllib_policy: Any = None          # algo.get_policy()
+    base_policy: Any = None   
+    action_size: int = None
+    observation_shape: Any = None           
+    action_type: str = "discrete"
+    temperature: float = 1.0          # opcional (T=1 por defecto)
 
+    def __post_init__(self):
+        # inferir action_size si falta
+        if self.action_size is None:
+            try:
+                self.action_size = int(self.rllib_policy.action_space.n)
+            except Exception:
+                raise ValueError("action_size no especificado y no se pudo inferir de rllib_policy.action_space.n")
 
-    # --- parche clave: evitar deepcopy de la policy ---
+        # inferir observation_shape si falta (de la policy o pásalo tú)
+        if self.observation_shape is None:
+            try:
+                self.observation_shape = tuple(self.rllib_policy.observation_space.shape)
+            except Exception:
+                raise ValueError("observation_shape no especificado y no se pudo inferir de rllib_policy.observation_space.shape")
+
+        # construir base_policy como adapter (en vez de usar la policy de RLlib directa)
+        if self.base_policy is None:
+            self.base_policy = RLLibPolicyAdapter(
+                rllib_policy=self.rllib_policy,
+                observation_shape=self.observation_shape,
+                action_size=self.action_size,
+                gamma=0.9,
+                device="cpu",  # cambia a "cuda" si procede
+            )
+
+    # --- evitar deepcopy de la policy ---
     def __deepcopy__(self, memo):
-        # Creamos una nueva instancia copiando solo campos “seguros”,
-        # y reusamos la MISMA referencia a rllib_policy.
-        new = RLlibGreedyHead(
+        new = RLlibCategoricalHead(
             name=self.name,
-            rllib_policy=self.rllib_policy,   # <- misma referencia, no deepcopy
+            rllib_policy=self.rllib_policy,    # misma ref
             action_size=self.action_size,
+            temperature=self.temperature,
         )
         memo[id(self)] = new
         return new
 
-    # --- opcional: hacer que el objeto sea “pickle-safe” si SCOPE-RL paraleliza ---
+    # opcional: pickle-safe
     def __getstate__(self):
         d = self.__dict__.copy()
-        # No intentes picklear la policy de RLlib (no es necesaria para serializar el “head”)
         d["rllib_policy"] = None
         return d
 
     def __setstate__(self, state):
         self.__dict__.update(state)
-        # El llamador debe volver a asignar la policy si hace falta tras un pickle/unpickle.
-        # En la práctica, SCOPE-RL no debería necesitar picklear el head con la policy dentro.
 
-    # --- Obligatorios para BaseHead en flujos discretos ---
+    # -------- internals ----------
+    @torch.no_grad()
+    def _batch_logits(self, x: np.ndarray) -> np.ndarray:
+        states_iter, n = _iter_states(x)
+        # RLlib acepta lista/np para batch
+        batch = np.stack(list(states_iter), axis=0) if n > 1 else np.asarray(list(states_iter)[0])[None, ...]
+        # full_fetch=True para obtener 'action_dist_inputs' (logits)
+        _, _, extra = self.rllib_policy.compute_actions(
+            batch, explore=False, full_fetch=True
+        )
+        logits = extra.get("action_dist_inputs", None)
+        if logits is None:
+            # Algunos policies devuelven tensor torch; convertimos
+            action_dist = extra.get("action_dist", None)
+            if action_dist is not None and hasattr(action_dist, "inputs"):
+                logits = action_dist.inputs
+            elif action_dist is not None and hasattr(action_dist, "logits"):
+                logits = action_dist.logits
+            if logits is None:
+                raise RuntimeError("No se pudieron obtener logits ('action_dist_inputs'). Usa full_fetch=True y una policy discreta.")
+        if isinstance(logits, torch.Tensor):
+            logits = logits.cpu().numpy()
+        else:
+            logits = np.asarray(logits)
+        if self.temperature != 1.0:
+            logits = logits / float(self.temperature)
+        # sanity
+        if logits.shape[-1] != int(self.action_size):
+            raise RuntimeError(f"Dimensión de acciones inesperada: {logits.shape[-1]} != {self.action_size}")
+        return logits
+
+    def _batch_probs(self, x: np.ndarray) -> np.ndarray:
+        return _softmax_stable(self._batch_logits(x))
+
+    # -------- Métodos requeridos por BaseHead (discrete) --------
 
     def calc_action_choice_probability(self, x: np.ndarray) -> np.ndarray:
-        """Devuelve prob(a|s) con una distribución one-hot de la acción greedy (determinista)."""
-        states_iter, n = _iter_states(x)
-        probs = np.zeros((n, self.action_size), dtype=float)
-        i = 0
-        for s in states_iter:
-            a, _, _ = self.rllib_policy.compute_single_action(s, explore=False)
-            probs[i, int(a)] = 1.0
-            i += 1
-        return probs
+        """
+        Devuelve matriz (n, A) con pi(a|s) para cada estado.
+        (SCOPE-RL usa esto para IS/WIS/DR.)
+        """
+        return self._batch_probs(x)
 
     def calc_pscore_given_action(self, x: np.ndarray, action: np.ndarray) -> np.ndarray:
-        """Devuelve pscore de la acción observada bajo la policy (1 si coincide con la greedy, 0 en otro caso)."""
-        states_iter, n = _iter_states(x)
-        action = np.asarray(action).reshape(-1)
-        p = np.zeros((n,), dtype=float)
-        i = 0
-        for s in states_iter:
-            a_star, _, _ = self.rllib_policy.compute_single_action(s, explore=False)
-            p[i] = 1.0 if int(a_star) == int(action[i]) else 0.0
-            i += 1
-        return p
+        """
+        Devuelve pi(a_t|s_t) para cada par (s_t, a_t) del dataset.
+        """
+        probs = self._batch_probs(x)
+        a = np.asarray(action).astype(int).reshape(-1)
+        return np.clip(probs[np.arange(len(a)), a], 1e-12, 1.0)
 
     def predict_online(self, x: np.ndarray) -> np.ndarray:
-        """Acción greedy por estado (vector de shape (n,))."""
-        states_iter, n = _iter_states(x)
-        acts = np.zeros((n,), dtype=int)
-        i = 0
-        for s in states_iter:
-            a, _, _ = self.rllib_policy.compute_single_action(s, explore=False)
-            acts[i] = int(a)
-            i += 1
-        return acts
+        """
+        Devuelve acción greedy (argmax pi) por estado. Shape: (n,)
+        """
+        probs = self._batch_probs(x)
+        return probs.argmax(axis=-1).astype(int)
+
     def sample_action_and_output_pscore(self, x: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Requerido por BaseHead.
-        Devuelve (acciones, pscore_de_acciones) para los estados x, donde pscore es prob(a|s) bajo esta policy.
-        Como es determinista (greedy), pscore = 1.0 para la acción devuelta.
+        Devuelve (acciones muestreadas, pscore) donde pscore = pi(a_sampled|s).
         """
-        states_iter, n = _iter_states(x)
-        acts = np.zeros((n,), dtype=int)
-        pscore = np.ones((n,), dtype=float)  # determinista
-        i = 0
-        for s in states_iter:
-            a, _, _ = self.rllib_policy.compute_single_action(s, explore=False)
-            acts[i] = int(a)
-            i += 1
+        probs = self._batch_probs(x)
+        n, A = probs.shape
+        # muestreo categórico vectorizado
+        # (truco: compara cumsum con uniformes)
+        u = np.random.rand(n, 1)
+        cdf = np.cumsum(probs, axis=1)
+        acts = (u > cdf).sum(axis=1).astype(int)
+        pscore = np.clip(probs[np.arange(n), acts], 1e-12, 1.0)
         return acts, pscore
+
+    # --- Método que te falta y que SCOPE-RL a veces llama explícitamente ---
+    def sample_action(self, x_single: Union[np.ndarray, Dict]) -> int:
+        """
+        Acción muestreada para un único estado (SCOPE-RL lo puede invocar).
+        """
+        return self.predict_online(x_single)
 
 # ----------------------------
 # 3) Carga policy RLlib 2.11 + dataset desde JSON -> OPE
 # ----------------------------
 BEH_EPISODES_JSON = "/opt/ml/code/episodes/120820251600/140825_generated_rllib_ppo_rllib_seed_0000_1000eps_200steps_exp_0/output-2025-08-14_12-19-12_worker-0_0.json"  
-CKPT_DIR        = "/opt/ml/code/checkpoints/130820251600"          # behavioral policy
+CKPT_DIR_EVAL        = "/opt/ml/code/checkpoints/130820251600"          # behavioral policy
+CKPT_DIR_BEH        = "/opt/ml/code/checkpoints/120820251600"          # behavioral policy
 ENV_ID          = "LunarLander-v3"                    # <-- usa tu env real
 
 # Carga policy RLlib
-algo = Algorithm.from_checkpoint(CKPT_DIR)
-rllib_policy = algo.get_policy()
+algo = Algorithm.from_checkpoint(CKPT_DIR_EVAL)
+rllib_policy_eval = algo.get_policy()
+print("policy.observation_space:", algo.get_policy().observation_space)
+
+algo = Algorithm.from_checkpoint(CKPT_DIR_BEH)
+rllib_policy_beh = algo.get_policy()
+
 
 # Entorno (se usa para dimensiones/espacios; no generamos datos del env)
 env = gym.make(ENV_ID)
+print("env.observation_space.shape:", env.observation_space.shape)
 action_size = env.action_space.n  # discreto
 
 # Carga logged_dataset desde el JSON de RLlib
@@ -373,15 +690,21 @@ beh_df = load_json_to_df(reader_beh, 1000)
 logged_dataset = df_to_logged_dataset(beh_df)
 
 # Inyecta la policy como evaluation_policy
-eval_head = RLlibGreedyHead(rllib_policy=rllib_policy, action_size=action_size)
+# beh_head = RLlibCategoricalHead(rllib_policy=rllib_policy_beh, action_size=action_size)
+eval_head = RLlibCategoricalHead(rllib_policy=rllib_policy_eval,
+                                action_size=action_size,
+                                observation_shape=env.observation_space.shape)
+
+
+# generamos datos de la politica beh
 
 # Prepara inputs para OPE
 prep = CreateOPEInput(env=env)
 input_dict = prep.obtain_whole_inputs(
     logged_dataset=logged_dataset,
     evaluation_policies=[eval_head],
-    # require_value_prediction=True,  # activa si vas a usar DM/DR (entrena FQE)
-    n_trajectories_on_policy_evaluation=0,  # si no necesitas rollouts on-policy sintéticos
+    require_value_prediction=True,  # activa si vas a usar DM/DR (entrena FQE)
+    n_trajectories_on_policy_evaluation=100,  # si no necesitas rollouts on-policy sintéticos
     random_state=123,
 )
 

@@ -1,8 +1,10 @@
 docker run hello-world
 
-
 sudo docker run --rm -it -p 5678:5678 -v "$PWD":/opt/ml/code sagemaker-rllib:latest python /opt/ml/code/gen_eps_lunar_lander_rllib_ppd.py
 
 sudo docker run -it --rm sagemaker-rllib:latest bash
 
 sudo docker build -t sagemaker-rllib:latest .
+
+
+sudo docker run --rm -it -p 5678:5678 -v "$PWD":/opt/ml/code sagemaker-rllib-scope-rl:latest -v /home/enrique/repositories/scope-rl:/opt/scope-rl python /opt/ml/code/oppe-scope-rl-from-json.py

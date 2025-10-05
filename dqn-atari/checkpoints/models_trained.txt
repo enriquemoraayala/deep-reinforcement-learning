@@ -2,3 +2,5 @@
 310720251630:epochs:50 (g:0.9999,lr:0.0001) rweard_mean:82.6 - value function (100 eps): -13.38 - ENV: RLLIB 2.11 + Gymnasium 0.28 + LunarLander V2
     Experiment 0 - Num Episodes 100 - Avg. Score: -41.900698557325384 - Avg. Steps: 305.5
 120820251600: epochs:50 (g:0.9999,lr:0.0001) rweard_mean:86.63 - value function (100 eps): - ENV: RLLIB 2.11 + Gymnasium 1.0.0 + LunarLander V3
+130820251600: epochs:2000 (g:0.9999,lr:0.0001) rweard_mean:220 - value function (100 eps): - ENV: RLLIB 2.11 + Gymnasium 1.0.0 + LunarLander V3
+
