@@ -21,8 +21,10 @@ RUN pip install matplotlib==3.8.4 \
     && pip install debugpy
 
 COPY scope-rl/ /opt/scope-rl/
+COPY d3rlpy/ /opt/d3rlpy/
 # RUN pip install -e git+https://github.com/hakuhodo-technologies/scope-rl.git#egg=scope-rl
 RUN pip install --no-cache-dir -e /opt/scope-rl
+RUN pip install --no-cache-dir -e /opt/d3rlpy
 RUN pip install gymnasium[box2d] 
 # RUN pip uninstall gym -y
 # RUN mkdir -p /opt/ml/code /opt/ml/output

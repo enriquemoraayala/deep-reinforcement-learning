@@ -5,7 +5,8 @@ import numpy as np
 import pandas as pd
 import debugpy
 import torch
-from typing import Any, Tuple, Iterable
+import torch.nn.functional as F
+from typing import Dict, Optional, Sequence, Union, Tuple, Any, Iterable
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
@@ -19,10 +20,6 @@ from scope_rl.ope import CreateOPEInput, OffPolicyEvaluation
 from scope_rl.ope.discrete import DirectMethod as DM, SelfNormalizedPDIS as SNPDIS, SelfNormalizedDR as SNDR
 from scope_rl.policy.head import BaseHead
 from scope_rl.dataset import SyntheticDataset
-
-from typing import List, Dict, Optional, Union, Sequence
-import numpy as np
-import pandas as pd
 
 debug = 1
 if debug == 1:
@@ -239,6 +236,7 @@ def df_to_logged_dataset(
             continue
 
         S = stack_consistent(to_arr_list(g[obs_col]), "state")
+        S = S.squeeze(1)
         A_list = to_arr_list(g[action_col])
 
         # Inferir tipo de acción por episodio si no viene dado
@@ -357,7 +355,7 @@ def df_to_logged_dataset(
             A_flat = A_flat.reshape(-1, 1)
         action_dim = int(A_flat.shape[1]) if A_flat.size else None
         n_actions = None
-
+    A_flat_torch = torch.from_numpy(A_flat)
     R_flat = flatten_list_of_arrays(episodes_R).astype(float_dtype)
     done_flat = flatten_list_of_arrays([d.astype(bool) for d in episodes_done]).astype(bool)
     term_flat = flatten_list_of_arrays([t.astype(bool) for t in episodes_trunc]).astype(bool)
@@ -403,6 +401,285 @@ def df_to_logged_dataset(
 
     return logged_dataset
 
+def df_to_logged_dataset_torch(
+    df: pd.DataFrame,
+    *,
+    ep_col: str = "ep",
+    step_col: str = "step",
+    obs_col: str = "obs",
+    next_obs_col: str = "next_state",
+    action_col: str = "action",
+    reward_col: str = "reward",
+    done_col: str = "done",
+    truncated_col: Optional[str] = None,        # si tienes "truncated" (terminación por límite de pasos)
+    pscore_col: Optional[str] = "action_prob",  # prob(a_t | s_t)
+    alt_logp_col: Optional[str] = "action_logp",
+    behavior_policy: str = "behavior_policy",
+    dataset_id: int = 0,
+    # metadatos / formato
+    action_type: Optional[str] = None,          # {"discrete","continuous"} o None para inferir
+    n_actions: Optional[int] = None,            # si discrete; intenta inferir si None
+    one_hot_discrete: bool = False,             # para obtener acción (size, n_actions) en discreto
+    action_keys: Optional[Sequence[str]] = None,
+    action_meaning: Optional[Dict[int, Union[int,str]]] = None,
+    state_keys: Optional[Sequence[str]] = None,
+    float_dtype: torch.dtype = torch.float32,
+    eps: float = 1e-12,
+    # NUEVO: filtro de longitud mínima de episodio
+    min_steps: int = 200,
+    # dispositivo
+    device: Union[str, torch.device] = "cpu",
+) -> Dict[str, Union[int, str, torch.Tensor, Dict]]:
+    """
+    Convierte un DataFrame (una fila por (episodio, paso)) al esquema de logged_dataset para SCOPE-RL,
+    devolviendo TENSORES PyTorch. Solo incluye episodios con longitud >= min_steps.
+    """
+
+    required = {ep_col, step_col, obs_col, action_col, reward_col, done_col}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(f"Faltan columnas obligatorias: {sorted(missing)}")
+
+    # Orden estable por (ep, step)
+    df_sorted = df.sort_values([ep_col, step_col], kind="mergesort")
+
+    # ---------- utilidades Torch ----------
+    def to_tensor_list(series: pd.Series, *, dtype: Optional[torch.dtype] = None) -> Sequence[torch.Tensor]:
+        # Cada elemento puede ser escalar, lista, np.array, torch.Tensor...
+        out = []
+        for v in series.to_list():
+            t = v if isinstance(v, torch.Tensor) else torch.as_tensor(v)
+            if dtype is not None and t.dtype != dtype and t.is_floating_point():
+                t = t.to(dtype)
+            out.append(t.to(device))
+        return out
+
+    def stack_consistent(tensors: Sequence[torch.Tensor], name: str, *, dtype: Optional[torch.dtype] = None) -> torch.Tensor:
+        # Escalares -> (T,)
+        if all(t.ndim == 0 for t in tensors):
+            tcat = torch.stack(tensors).to(device)
+            if dtype is not None and tcat.is_floating_point():
+                tcat = tcat.to(dtype)
+            return tcat
+        # 1D homogéneo -> (T, d)
+        if all(t.ndim == 1 for t in tensors):
+            shapes = {tuple(t.shape) for t in tensors}
+            if len(shapes) != 1:
+                raise ValueError(f"{name}: formas 1D inconsistentes: {shapes}")
+            tcat = torch.stack(tensors, dim=0).to(device)
+            if dtype is not None and tcat.is_floating_point():
+                tcat = tcat.to(dtype)
+            return tcat
+        # kD homogéneo -> (T, ...)
+        shapes = {tuple(t.shape) for t in tensors}
+        if len(shapes) == 1:
+            tcat = torch.stack(tensors, dim=0).to(device)
+            if dtype is not None and tcat.is_floating_point():
+                tcat = tcat.to(dtype)
+            return tcat
+        raise ValueError(f"{name}: mezcla de formas incompatible: {[(i,tuple(a.shape)) for i,a in enumerate(tensors)]}")
+
+    def flatten_list_of_tensors(lst: Sequence[torch.Tensor], *, dtype: Optional[torch.dtype] = None) -> torch.Tensor:
+        if len(lst) == 0:
+            return torch.empty(0, device=device, dtype=(dtype or float_dtype))
+        if len(lst) == 1:
+            out = lst[0]
+        else:
+            out = torch.cat(lst, dim=0)
+        if dtype is not None and out.is_floating_point():
+            out = out.to(dtype)
+        return out
+
+    def flatten_list_of_arrays(lst):
+        return np.concatenate(lst, axis=0) if len(lst) else np.array([], dtype=float_dtype)
+
+    # ---------- recogida por episodios ----------
+    episodes_S, episodes_A, episodes_R, episodes_done = [], [], [], []
+    episodes_trunc = []
+    episodes_len = []
+    pscore_list = []
+
+    inferred_action_type: Optional[str] = None
+
+    for ep, g in df_sorted.groupby(ep_col, sort=False):
+        # Filtrado por longitud mínima
+        if len(g) < min_steps:
+            continue
+
+        # Estados
+        S_list = to_tensor_list(g[obs_col], dtype=float_dtype)
+        S = stack_consistent(S_list, "state", dtype=float_dtype)  # (T, ..., d)
+        # si viene (T,1,D) y quieres (T,D)
+        if S.ndim >= 2 and S.shape[1] == 1:
+            S = S.squeeze(1)
+
+        # Acciones
+        A_list = to_tensor_list(g[action_col])  # dtype puede ser float o int según el DF
+
+        # Inferir tipo de acción si no viene dado
+        if action_type is None:
+            if all(t.ndim == 0 for t in A_list):
+                inferred_action_type = inferred_action_type or "discrete"
+            else:
+                inferred_action_type = inferred_action_type or "continuous"
+
+        # Apilar acciones
+        if all(t.ndim == 0 for t in A_list):
+            # Discreto (índice por paso) -> (T,)
+            A = torch.stack(A_list).to(device)
+            if not A.is_floating_point():  # probablemente int64 ya
+                A = A.to(torch.long)
+            else:
+                A = A.to(torch.long)
+        else:
+            # Continuo -> (T, d_a)
+            A = stack_consistent(A_list, "action", dtype=float_dtype)
+            if A.ndim == 1:
+                A = A.unsqueeze(1)
+
+        # Recompensas, done, truncation
+        R = torch.as_tensor(g[reward_col].to_list(), dtype=float_dtype, device=device)
+        D_torch = torch.as_tensor(g[done_col].to_list(), dtype=torch.bool, device=device).clone()
+        # MDPDataset espera dones en nd.array
+        D = np.asarray(g[done_col].to_list(), dtype=bool).copy()
+
+        # terminal: True en el último paso SIEMPRE (marca corte de trayectoria)
+        Tm = torch.zeros_like(D_torch, dtype=torch.bool, device=device)
+        if Tm.numel() > 0:
+            Tm[-1] = True
+            # si estamos truncando por longitud mínima, garantizamos fin de episodio
+            D[-1] = True if truncated_col is None else D[-1]
+            D_torch[-1] = True if truncated_col is None else D_torch[-1]
+        if truncated_col and truncated_col in g.columns:
+            # si quieres reflejar "timeout" explícito fuera
+            # aquí no cambiamos 'D'; Tm ya marca fin de trayectoria
+            pass
+
+        # pscore por episodio
+        P = None
+        if pscore_col and pscore_col in g.columns:
+            P = torch.as_tensor(g[pscore_col].to_list(), dtype=float_dtype, device=device)
+        elif alt_logp_col and alt_logp_col in g.columns:
+            P = torch.exp(torch.as_tensor(g[alt_logp_col].to_list(), dtype=float_dtype, device=device))
+        if P is not None:
+            P = torch.clamp(P, min=eps, max=1.0).to(float_dtype)
+            if not torch.isfinite(P).all():
+                raise ValueError(f"Episodio {ep}: pscore contiene NaN/Inf")
+
+        episodes_S.append(S)
+        episodes_A.append(A)
+        episodes_R.append(R)
+        episodes_done.append(D)
+        episodes_trunc.append(Tm)
+        episodes_len.append(len(R))
+        pscore_list.append(P)
+
+    # Dataset vacío tras el filtro
+    if len(episodes_len) == 0:
+        return {
+            "size": 0,
+            "n_trajectories": 0,
+            "step_per_trajectory": None,
+            "action_type": (action_type or "discrete"),
+            "n_actions": None if (action_type or "discrete") != "discrete" else None,
+            "action_dim": None if (action_type or "discrete") == "discrete" else None,
+            "action_keys": list(action_keys) if action_keys is not None else None,
+            "action_meaning": dict(action_meaning) if action_meaning is not None else None,
+            "state_dim": None,
+            "state_keys": list(state_keys) if state_keys is not None else None,
+            "state": torch.empty(0, 0, dtype=float_dtype, device=device),
+            "action": torch.empty(0, dtype=float_dtype, device=device),
+            "reward": torch.empty(0, dtype=float_dtype, device=device),
+            "done": np.array([], dtype=bool),
+            "terminal": np.array([], dtype=bool),
+            "info": None,
+            "pscore": None,
+            "behavior_policy": behavior_policy,
+            "dataset_id": int(dataset_id),
+        }
+
+    # Tipo de acción final
+    action_type_final = action_type or (inferred_action_type or "discrete")
+
+    # step_per_trajectory
+    unique_lengths = sorted(set(episodes_len))
+    step_per_trajectory = int(unique_lengths[0]) if len(unique_lengths) == 1 else None
+
+    n_trajectories = len(episodes_len)
+    size = int(sum(episodes_len))
+
+    # Aplanados
+    # Estado 2D (size, d_s)
+    S_flat = flatten_list_of_tensors([s if s.ndim >= 1 else s.view(-1, 1) for s in episodes_S], dtype=float_dtype)
+    if S_flat.ndim == 1:
+        S_flat = S_flat.view(-1, 1)
+    state_dim = int(S_flat.shape[1]) if S_flat.numel() else None
+
+    # Acción
+    if action_type_final == "discrete":
+        if any(a.ndim > 1 for a in episodes_A):
+            raise ValueError("Se infirió 'discrete' pero hay acciones vectoriales; fija action_type='continuous'.")
+        A_flat_int = flatten_list_of_tensors([a.to(torch.long) for a in episodes_A])
+        if n_actions is None:
+            n_actions = int(A_flat_int.max().item()) + 1 if A_flat_int.numel() else None
+
+        if one_hot_discrete and n_actions is not None:
+            A_flat = F.one_hot(A_flat_int.clamp(min=0), num_classes=n_actions).to(dtype=float_dtype)
+        else:
+            A_flat = A_flat_int  # (size,) long
+        action_dim = None
+    else:
+        A_flat = flatten_list_of_tensors([a if a.ndim >= 1 else a.view(-1, 1) for a in episodes_A], dtype=float_dtype)
+        if A_flat.ndim == 1:
+            A_flat = A_flat.view(-1, 1)
+        action_dim = int(A_flat.shape[1]) if A_flat.numel() else None
+        n_actions = None
+
+    R_flat = flatten_list_of_tensors(episodes_R, dtype=float_dtype)
+    # done_flat = flatten_list_of_tensors([d.to(torch.bool) for d in episodes_done], dtype=None).to(torch.bool)
+    term_flat = flatten_list_of_tensors([t.to(torch.bool) for t in episodes_trunc], dtype=None).to(torch.bool)
+    # MDPDataset espera termination com nd.array, no pytorch tensor
+    done_flat = flatten_list_of_arrays([d.astype(bool) for d in episodes_done]).astype(bool)
+    # term_flat = flatten_list_of_arrays([t.astype(bool) for t in episodes_trunc]).astype(bool)
+
+    # pscore
+    if any(p is not None for p in pscore_list):
+        P_list = []
+        for T, P in zip(episodes_len, pscore_list):
+            if P is None:
+                P = torch.full((T,), float("nan"), dtype=float_dtype, device=device)
+            P_list.append(P)
+        pscore_flat = torch.cat(P_list, dim=0).to(float_dtype)
+    else:
+        pscore_flat = None
+
+    # Claves opcionales (metadatos sin tensors)
+    action_keys = list(action_keys) if action_keys is not None else None
+    state_keys = list(state_keys) if state_keys is not None else None
+    action_meaning = dict(action_meaning) if action_meaning is not None else None
+
+    logged_dataset: Dict[str, Union[int, str, torch.Tensor, Dict]] = {
+        "size": size,
+        "n_trajectories": n_trajectories,
+        "step_per_trajectory": step_per_trajectory,
+        "action_type": action_type_final,   # "discrete" | "continuous"
+        "n_actions": n_actions,             # solo para discreto
+        "action_dim": action_dim,           # solo para continuo
+        "action_keys": action_keys,
+        "action_meaning": action_meaning,
+        "state_dim": state_dim,
+        "state_keys": state_keys,
+        "state": S_flat,                    # torch.Tensor (size, d_s)
+        "action": A_flat,                   # torch.Tensor (size,) o (size,n_actions)/(size,d_a)
+        "reward": R_flat,                   # torch.Tensor (size,)
+        "done": done_flat,                  # torch.Tensor (size,) bool
+        "terminal": term_flat,              # torch.Tensor (size,) bool
+        "info": None,
+        "pscore": pscore_flat,              # torch.Tensor (size,) con NaN donde no haya
+        "behavior_policy": behavior_policy,
+        "dataset_id": int(dataset_id),
+    }
+    return logged_dataset
 
 
 # ----------------------------
@@ -420,6 +697,30 @@ def _softmax_stable(logits: np.ndarray) -> np.ndarray:
     exp = np.exp(logits)
     return exp / exp.sum(axis=-1, keepdims=True)
 
+# --- utils para normalizar entradas a batch ---
+def _to_batch(x):
+    """
+    Devuelve (batch, n). Acepta dict/list/np.ndarray/estado único.
+    - dict: se asume mapping de claves de obs -> arrays/listas
+    - list/np.ndarray: apila a primera dimensión
+    """
+    if isinstance(x, dict):
+        # detecta si es un único estado o batch
+        first = next(iter(x.values()))
+        is_single = np.asarray(first).ndim == 1
+        batch = {k: (np.expand_dims(np.asarray(v), 0) if is_single else np.asarray(v))
+                 for k, v in x.items()}
+        n = next(iter(batch.values())).shape[0]
+        return batch, n
+    else:
+        arr = np.asarray(x, dtype=object) if isinstance(x, list) else np.asarray(x)
+        if arr.ndim == 0:
+            arr = arr[None, ...]
+        elif arr.ndim == 1 and arr.dtype == object:
+            # lista de objetos -> apilar a lo bruto
+            arr = np.stack(list(arr), axis=0)
+        return arr, arr.shape[0]
+
 
 # ========= Shims para d3rlpy-like API =========
 class _ImplShim:
@@ -436,6 +737,16 @@ class _ImplShim:
     def predict_value(self, x: Union[np.ndarray, Dict]) -> np.ndarray:
         # Reenvía a la lógica del adapter
         return self._adapter.predict_value(x)
+    
+    @torch.no_grad()
+    def predict_best_action(self, x: Union[np.ndarray, Dict]) -> np.ndarray:
+        """Acción greedy por estado (discreto: índices int; continuo: vector)."""
+        return self._adapter.predict_best_action(x)
+    
+    @torch.no_grad()
+    def sample_action(self, x: Union[np.ndarray, Dict]) -> np.ndarray:
+        """Opcional: acción muestreada de la policy (si la usas en pipelines estocásticos)."""
+        return self._adapter.sample_action(x)
 
 
 class _ConfigShim:
@@ -458,12 +769,14 @@ class RLLibPolicyAdapter:
         action_size: int,
         gamma: float = 0.99,
         device: str = "cpu",
+        action_type: str = "discrete",
     ):
         self._rllib_policy = rllib_policy
         self._observation_shape = observation_shape
         self._action_size = int(action_size)
         self._gamma = float(gamma)
         self._device = device
+        self._action_type = action_type  
 
         # Shims que SCOPE-RL puede buscar:
         self.impl = _ImplShim(self)       # <- **clave**: añade `.impl`
@@ -512,14 +825,31 @@ class RLLibPolicyAdapter:
         if isinstance(vf, torch.Tensor):
             vf = vf.cpu().numpy()
         return np.asarray(vf).reshape(-1)
+    
+    # --- Acción greedy (lo que pide predict_best_action del impl) ---
+    @torch.no_grad()
+    def predict_best_action(self, x: Union[np.ndarray, Dict]) -> np.ndarray:
+        batch, n = _to_batch(x)
+        acts, _, _ = self._rllib_policy.compute_actions(
+            batch, explore=False, full_fetch=False
+        )
+        acts = np.asarray(acts)
+        return acts.reshape(n, -1) if self._action_type == "continuous" and acts.ndim == 1 else acts
 
-    # --- opcional: Q(s,a) si alguna ruta lo pidiese (normalmente no es necesario para OPE) ---
+    # --- Muestreo estocástico (si quieres usarlo) ---
+    @torch.no_grad()
+    def sample_action(self, x: Union[np.ndarray, Dict]) -> np.ndarray:
+        batch, n = _to_batch(x)
+        acts, _, _ = self._rllib_policy.compute_actions(
+            batch, explore=True, full_fetch=False
+        )
+        acts = np.asarray(acts)
+        return acts.reshape(n, -1) if self._action_type == "continuous" and acts.ndim == 1 else acts
+    
+    # PPO no tiene Q explícito
     def predict_q(self, x: Union[np.ndarray, Dict]) -> Optional[np.ndarray]:
-        """
-        PPO no aprende un Q explícito.
-        Devolvemos None; FQE se encargará de estimar Q^π.
-        """
         return None
+
 
 @dataclass
 class RLlibCategoricalHead(BaseHead):
@@ -663,7 +993,7 @@ class RLlibCategoricalHead(BaseHead):
 # 3) Carga policy RLlib 2.11 + dataset desde JSON -> OPE
 # ----------------------------
 BEH_EPISODES_JSON = "/opt/ml/code/episodes/120820251600/140825_generated_rllib_ppo_rllib_seed_0000_1000eps_200steps_exp_0/output-2025-08-14_12-19-12_worker-0_0.json"  
-CKPT_DIR_EVAL        = "/opt/ml/code/checkpoints/130820251600"          # behavioral policy
+CKPT_DIR_EVAL        = "/opt/ml/code/checkpoints/130820251600"          # eval policy
 CKPT_DIR_BEH        = "/opt/ml/code/checkpoints/120820251600"          # behavioral policy
 ENV_ID          = "LunarLander-v3"                    # <-- usa tu env real
 
@@ -688,6 +1018,7 @@ action_size = env.action_space.n  # discreto
 reader_beh = JsonReader(BEH_EPISODES_JSON)
 beh_df = load_json_to_df(reader_beh, 1000)
 logged_dataset = df_to_logged_dataset(beh_df)
+# logged_dataset = df_to_logged_dataset_torch(beh_df)
 
 # Inyecta la policy como evaluation_policy
 # beh_head = RLlibCategoricalHead(rllib_policy=rllib_policy_beh, action_size=action_size)
@@ -703,13 +1034,14 @@ prep = CreateOPEInput(env=env)
 input_dict = prep.obtain_whole_inputs(
     logged_dataset=logged_dataset,
     evaluation_policies=[eval_head],
-    require_value_prediction=True,  # activa si vas a usar DM/DR (entrena FQE)
+    require_value_prediction=False,  # activa si vas a usar DM/DR (entrena FQE)
     n_trajectories_on_policy_evaluation=100,  # si no necesitas rollouts on-policy sintéticos
     random_state=123,
 )
 
 # Ejecuta OPE (estimadores discretos de ejemplo)
-estimators = [DM(), SNPDIS(), SNDR()]
+# estimators = [DM(), SNPDIS(), SNDR()]
+estimators = [SNPDIS()]
 ope = OffPolicyEvaluation(logged_dataset=logged_dataset, ope_estimators=estimators)
 
 policy_value_df, policy_value_interval_df = ope.summarize_off_policy_estimates(
