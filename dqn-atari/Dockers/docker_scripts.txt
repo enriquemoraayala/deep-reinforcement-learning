@@ -10,3 +10,5 @@ sudo docker build -t sagemaker-rllib:latest .
 sudo docker run --rm -it -p 5678:5678 -v "$PWD":/opt/ml/code sagemaker-rllib-scope-rl:latest -v /home/enrique/repositories/scope-rl:/opt/scope-rl python /opt/ml/code/oppe-scope-rl-from-json.py
 
 docker image prune -f
+
+sudo docker run --rm -it -p 5678:5678 -v "$PWD":/opt/ml/code sagemaker-rllib-211-gymnasium-10:latest python /opt/ml/code/03.01_oppe_from_scratch.py
