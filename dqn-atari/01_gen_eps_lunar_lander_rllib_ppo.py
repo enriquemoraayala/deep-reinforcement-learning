@@ -16,14 +16,15 @@ from datetime import datetime
 import ray
 import os
 import imageio
-from PIL import Image, ImageDraw, ImageFont
+import tqdm
+import debugpy
 
+from tqdm import trange
+from PIL import Image, ImageDraw, ImageFont
+from gymnasium.wrappers import NormalizeObservation
 from ray.rllib.evaluation.sample_batch_builder import SampleBatchBuilder
 from ray.rllib.offline.json_writer import JsonWriter
 from ray.rllib.algorithms.algorithm import Algorithm
-
-import debugpy
-
 
 def TextOnImg(img, score, x=20, y=20, text='Score'):
     img = Image.fromarray(img)
@@ -81,6 +82,7 @@ def generate_episodes(args, env, agent, exp):
     batch_builder = SampleBatchBuilder()  # or MultiAgentSampleBatchBuilder
     today = datetime.now()
     today = today.strftime("%d%m%y")
+
     if args.agent_type == 'random':
         file_name = f'{today}_generated_rllib_{args.agent_type}_seed_{args.env_seed}_{args.total_episodes}eps_{args.max_ep}steps_exp_{exp}'
     else:
@@ -90,7 +92,7 @@ def generate_episodes(args, env, agent, exp):
     )
     scores = []
     steps = []
-    for i in range(int(args.total_episodes)):
+    for i in trange(int(args.total_episodes)):
         if args.env_seed == '0000':
             state = env.reset()
         else:
@@ -124,7 +126,7 @@ def generate_episodes(args, env, agent, exp):
                 prob = prob.detach().numpy()
                 logp = math.log(prob)
             
-            next_state, reward, done, _, _ = env.step(action)
+            next_state, reward, terminated, truncated , info = env.step(action)
             score += reward
             batch_builder.add_values(
                         t=idx_step,
@@ -137,14 +139,15 @@ def generate_episodes(args, env, agent, exp):
                         rewards=reward,
                         prev_actions=prev_action,
                         prev_rewards=prev_reward,
-                        dones=done,
-                        infos=[],
+                        terminateds=terminated,
+                        truncateds=truncated,
+                        infos=info,
                         new_obs=next_state 
                     )
             prev_action = action
             prev_reward = reward
             state = next_state
-            if done:
+            if terminated or truncated:
                 break
         scores.append(score)
         steps.append(idx_step)
@@ -155,7 +158,12 @@ def generate_episodes(args, env, agent, exp):
 def render_agent(args):
     num_experiments = int(args.total_datasets_to_generate)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    env = gym.make("LunarLander-v3", render_mode="rgb_array", )
+    max_eps = int(args.max_ep)
+    if max_eps > 0:
+        env = gym.make("LunarLander-v3", render_mode="rgb_array", max_episode_steps=int(args.max_ep))
+    else:
+        env = gym.make("LunarLander-v3", render_mode="rgb_array")
+    # env = NormalizeObservation(env)
     num_states = env.observation_space.shape[0]
     num_actions = env.action_space.n
     if args.agent_type == 'dqn':
@@ -187,14 +195,14 @@ if __name__ == '__main__':
                         default='LunarLander-v3')
     parser.add_argument("--agent_type", help = "dqn/random/ppo_rllib", default="ppo_rllib")
     parser.add_argument("--render", help = "yes/no", default="no")
-    parser.add_argument("--max_ep", help = "0 is max_ep", default="200")
+    parser.add_argument("--max_ep", help = "0 is max_ep", default="300")
     parser.add_argument("--total_episodes", help = "", default="1000")
     parser.add_argument("--total_datasets_to_generate", help = "", default="1")
     parser.add_argument("--env_seed", help = "0000 -> no seed", default="0000")
-    parser.add_argument("--debug", help = "yes=1/no=0", default="0")
+    parser.add_argument("--debug", help = "yes=1/no=0", default="1")
     parser.add_argument("--output", help = "path", 
                         # default="/home/enrique/repositories/deep-reinforcement-learning/dqn-atari/episodes/ppo_rllib_130920241043"
-                        default="/opt/ml/code/output_gifs/310720251600_"
+                        default="/opt/ml/code/output_gifs/130820251600_"
                         )
     parser.add_argument("--model_checkpoint_path", type=str,
                         help="Path to the model checkpoint",

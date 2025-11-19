@@ -33,7 +33,7 @@ def load_json_to_df(reader, num_eps):
             rows.append(row)
     return pd.DataFrame(rows)
 
-def calculate_value_function(episodes_df, gamma=0.99):
+def calculate_policy_expected_value(episodes_df, gamma=0.99):
     episodes_idx = episodes_df['ep'].unique()
     eps_return = []
     for ep_idx in episodes_idx:
