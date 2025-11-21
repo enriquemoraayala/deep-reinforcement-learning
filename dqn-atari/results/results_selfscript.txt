@@ -12,3 +12,14 @@ Valor esperado estimado DM de la política PPO (retorno promedio inicial): -5.81
 Valor esperado estimado DR de la política PPO (retorno promedio inicial): -12.206 - STD: 22.431
 Direct Method (DM) with RLLIB V_ expected estimation -296.87896728515625 and STD 120.73797215513675
 Double Roboust (DR) with RLLIB V_ expected estimation -97.35513527687326 and STD 76.6586105594
+
+
+
+===================================================================================================
+
+RESULTADOS  03.01.03.01_oppe_from_scratch
+BEH_EPISODES_JSON = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
+Avg_Expecting_Return (BEH_POLICY) Value - RLLIB Generated episodes:  46.783 - STD  15.784
+Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes:  71.589 - STD  18.908
+Ordinary IS: 2.1916416166400459e-41
+Ordinary IS (logprob): 9.642626486267774e-08

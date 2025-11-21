@@ -49,13 +49,36 @@ if debug == 1:
 
 
 # ---------------- Utilidades ----------------
-def add_target_probs(df, target_policy_fn):
+def add_target_probs(df, target_policy_model):
     df = df.copy()
     df["target_prob_accion"] = df.apply(
-        lambda row: target_policy_fn(row["obs"], row["action"]),
+        lambda row: get_action_prob(target_policy_model,row["obs"], row["action"], False),
         axis=1
     )
     return df
+
+
+def add_target_probs_log(df, target_policy_model):
+    df = df.copy()
+    df["target_logprob_accion"] = df.apply(
+        lambda row: get_action_prob(target_policy_model,row["obs"], row["action"], True),
+        axis=1
+    )
+    return df
+
+
+def get_action_prob(target_policy, state, action, logp):
+    state = torch.tensor(state)
+    input_dict = {"obs": state}
+    logits, _ = target_policy.model(input_dict, [], None)
+    probs_ = torch.nn.Softmax(dim=1)
+    probs_ = probs_(logits)
+    prob = probs_[0][action]
+    target_prob = prob.detach().numpy()
+    if logp:
+        return np.log(target_prob)
+    else:
+        return target_prob
 
 
 def ordinary_is_ope(df, gamma: float = 0.99, eps: float = 1e-8):
@@ -97,6 +120,55 @@ def ordinary_is_ope(df, gamma: float = 0.99, eps: float = 1e-8):
     }
 
 
+def ordinary_is_ope_log(df, gamma: float = 0.99, max_log_w_clip: float | None = 20.0):
+    """
+    Off-policy evaluation con Ordinary Importance Sampling usando log-probs.
+    
+    Requiere columnas:
+    - 'ep'
+    - 'step'
+    - 'reward'
+    - 'logprob'          (log π_b(a|s))
+    - 'target_logprob_accion'   (log π_e(a|s))
+    """
+    df = df.sort_values(["ep", "step"]).copy()
+    
+    # log-ratio por paso
+    df["log_rho_t"] = df["target_logprob_accion"] - df["logprob"]
+    
+    def episode_is_return_log(group):
+        rewards = group["reward"].to_numpy()
+        log_rhos = group["log_rho_t"].to_numpy()
+        
+        T = len(group)
+        discounts = gamma ** np.arange(T)
+        
+        # Retorno del episodio (solo rewards)
+        G = np.sum(discounts * rewards)
+        
+        # log peso de importance sampling
+        log_w = np.sum(log_rhos)
+        
+        # Clipping opcional para estabilidad numérica
+        if max_log_w_clip is not None:
+            log_w = np.clip(log_w, -max_log_w_clip, max_log_w_clip)
+        
+        w = np.exp(log_w)
+        
+        return w * G, w, G, log_w
+    
+    results = df.groupby("ep").apply(
+        lambda g: pd.Series(episode_is_return_log(g), index=["wG", "w", "G", "log_w"])
+    )
+    
+    V_IS = results["wG"].mean()
+    
+    return {
+        "V_IS": V_IS,
+        "episodic_table": results,  # incluye pesos, retornos y log_w por episodio
+    }
+
+
 def oppe():
 
     BEH_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/120820251600"
@@ -127,13 +199,16 @@ def oppe():
 
 
     df = add_target_probs(beh_eps_df, eval_policy)
-
+    df_log = add_target_probs_log(beh_eps_df, eval_policy)
     # 3) Evaluar con distintos estimadores
     res_is   = ordinary_is_ope(df, gamma=0.99)
-    # res_wis  = weighted_is_ope(df, gamma=0.99)
+    res_is_log   = ordinary_is_ope_log(df_log, gamma=0.99)
+    
+        # res_wis  = weighted_is_ope(df, gamma=0.99)
     # res_pdis = per_decision_is_ope(df, gamma=0.99)
 
     print("Ordinary IS:", res_is["V_IS"])
+    print("Ordinary IS (logprob):", res_is_log["V_IS"])
     # print("Weighted IS:", res_wis["V_WIS"])
     # print("Per-decision IS:", res_pdis["V_PDIS"])
    
