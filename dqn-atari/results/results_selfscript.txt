@@ -1,25 +1,67 @@
-Avg_Expecting_Return (BEH_POLICY) Value - RLLIB Generated episodes: -12.038 - STD  23.548
-Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes:  49.438 - STD  13.103
-Calculating IS for 2000
-
-=======  RESULTADOS OPPE with Custom Library   =======
-Ordinary Importance Sampling (IS Custom) Value: 1.5002036039387728e-281
-checkpoint = torch.load(FQE_CHECKPOINT_PATH + '/fqe_epoch_80.pt')
-Se cargó el checkpoint desde ./fqe_checkpoints, entrenadas 80 épocas con Avg. Loss 2.8818980979652298
-
-Valor esperado estimado DM de la política PPO (retorno promedio inicial): -5.817 - STD: 18.805
-
-Valor esperado estimado DR de la política PPO (retorno promedio inicial): -12.206 - STD: 22.431
-Direct Method (DM) with RLLIB V_ expected estimation -296.87896728515625 and STD 120.73797215513675
-Double Roboust (DR) with RLLIB V_ expected estimation -97.35513527687326 and STD 76.6586105594
-
-
 
 ===================================================================================================
 
-RESULTADOS  03.01.03.01_oppe_from_scratch
+---> dqn-atari/03.01_oppe_from_scratch_is.py
 BEH_EPISODES_JSON = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
 Avg_Expecting_Return (BEH_POLICY) Value - RLLIB Generated episodes:  46.783 - STD  15.784
 Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes:  71.589 - STD  18.908
 Ordinary IS: 2.1916416166400459e-41
 Ordinary IS (logprob): 9.642626486267774e-08
+
+*BEH_EPISODES_JSON_TEST = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0'
+Ordinary IS: 1.4130368255603268e-44
+Ordinary IS (logprob): 9.90156039758722e-08
+
+---> dqn-atari/03.02_oppe_from_scratch_dm_2.py
+Se cargó el checkpoint desde ./fqe_checkpoints, entrenadas 80 épocas con Avg. Loss 2.8818980979652298
+Calculando estimador DM (política estocástica)...
+[DM estocástico] J_hat ≈ -1269.6566
+Calculando estimador DM (política greedy w.r.t Q)...
+[DM greedy] J_hat ≈ -5.2439
+==============================================================================================================================
+--->dqn-atari/03.02_oppe_from_scratch_dm.py
+
+BEH_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/120820251600"
+EVAL_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/130820251600"
+FQE_CHECKPOINT_PATH = "./fqe_checkpoints"
+
+    BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/120820251600/011125_01_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_exp_0'
+    *BEH_EPISODES_JSON_TEST = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0'
+    BEH_EPISODES_JSON = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
+    EVAL_EPISODES_JSON = '/opt/ml/code/episodes/130820251600/140825_generated_rllib_ppo_rllib_seed_0000_1000eps_200steps_exp_0'
+Avg_Expecting_Return (BEH_POLICY) Value - RLLIB Generated episodes:  46.783 - STD  15.784
+Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes:  71.589 - STD  18.908
+
+Se cargó el checkpoint desde ./fqe_checkpoints, entrenadas 80 épocas con Avg. Loss 2.8818980979652298
+
+Valor esperado estimado DM de la política PPO (retorno promedio inicial): -2.499 - STD: 18.731
+
+Valor esperado estimado DR de la política PPO (retorno promedio inicial): 48.897 - STD: 16.680
+
+
+
+==========================================================================================================
+---> 03.02_oppe_rllib_from_scratch
+    BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/120820251600/011125_01_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_exp_0'
+    BEH_EPISODES_JSON_TEST = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0'
+    BEH_EPISODES_JSON = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
+    EVAL_EPISODES_JSON = '/opt/ml/code/episodes/130820251600/140825_generated_rllib_ppo_rllib_seed_0000_1000eps_200steps_exp_0'
+
+Ordinary Importance Sampling (IS RLLIB) Value: 1.9778902337205626
+Direct Method (DM) with RLLIB V_ expected estimation 14.058918952941895 and STD 6.721131460475027
+Double Roboust (DR) with RLLIB V_ expected estimation 10.606786545908545 and STD 3.3457031323141386
+ DR: iter 8600: loss=5.4938
+ DM: iter 8800: loss=90.3064
+ DR: iter 8800: loss=11.1822
+ DM: iter 9000: loss=2.8379
+ DR: iter 9000: loss=18.0149
+ DM: iter 9200: loss=76.2725
+ DR: iter 9200: loss=93.4022
+ DM: iter 9400: loss=35.2855
+ DR: iter 9400: loss=82.0308
+ DM: iter 9600: loss=43.4317
+ DR: iter 9600: loss=39.7609
+ DM: iter 9800: loss=2.5291
+ DR: iter 9800: loss=4.6120
+ DM: iter 10000: loss=5.8550
+ DR: iter 10000: loss=2.9995

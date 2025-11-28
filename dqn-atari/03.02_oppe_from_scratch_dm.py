@@ -14,23 +14,12 @@ import debugpy
 import pandas as pd
 import torch
 
-from oppe_utils import load_checkpoint, load_json_to_df, calculate_value_function, calculate_return
+from oppe_utils import load_checkpoint, load_json_to_df, calculate_return, calculate_policy_expected_value
 from oppe_utils import QNetwork
 from statistics import mean, stdev
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.offline.json_reader import JsonReader
 
-from ray.rllib.algorithms import Algorithm
-from ray.rllib.policy.sample_batch import SampleBatch
-from ray.rllib.offline.estimators import DoublyRobust, ImportanceSampling, \
-                                         DirectMethod, \
-                                         WeightedImportanceSampling
-from ray.rllib.offline.estimators.fqe_torch_model import FQETorchModel
-
-
-#from ray.rllib.offline.estimators.direct_method import DMEstimator
-#from ray.rllib.offline.estimators.importance_sampling import ImportanceSamplingEstimator as ISEstimator
-#from ray.rllib.offline.estimators.doubly_robust import DoublyRobustEstimator as DREstimator
 import ray
 ray.init(ignore_reinit_error=True, include_dashboard=False)
 print(ray.__version__)
@@ -43,78 +32,6 @@ if debug == 1:
     debugpy.listen(("0.0.0.0", 5678))
     print("Esperando debugger de VS Code para conectar...")
     debugpy.wait_for_client()
-
-
-def calculate_importance_ratio(episode, target_policy, source= 'online'):
-    """
-    Calculates the importance ratio for a given episode.
-
-    Args:
-        episode (list): A list of dictionaries, where each dictionary represents a step in the episode.
-                        Each step should contain 'state', 'action', 'reward', 'behavior_policy_prob', and 'target_policy_prob'.
-        target_policy_probs (dict): A dictionary mapping (state, action) tuples to their probabilities under the target policy.
-        behavior_policy_probs (dict): A dictionary mapping (state, action) tuples to their probabilities under the behavior policy.
-
-    Returns:
-        float: The importance ratio for the episode.
-    """
-    importance_ratio = 1.0
-    # target_policy = target_policy.get_policy()
-    for idx, step in episode.iterrows():
-        state = step['obs']
-        action = step['action']
-        if source == 'online':
-            state = torch.tensor(state).unsqueeze(0)
-        else:
-            state = torch.tensor(state)
-        input_dict = {"obs": state}
-        logits, _ = target_policy.model(input_dict, [], None)
-        probs_ = torch.nn.Softmax(dim=1)
-        probs_ = probs_(logits)
-        prob = probs_[0][action]
-        target_prob = prob.detach().numpy()
-        behavior_prob = step["action_prob"]
-
-        if behavior_prob == 0:
-            # This case should ideally be handled by ensuring coverage, but for robustness:
-            return 0.0 # Or raise an error, depending on desired behavior
-        importance_ratio *= (target_prob / behavior_prob)
-    return importance_ratio
-
-
-def ordinary_importance_sampling(episodes_data, target_policy, gamma=0.99, source='online'):
-    """
-    Implements the Ordinary Importance Sampling (OIS) method for Off-policy Policy Evaluation.
-
-    Args:
-        episodes_data (list): A list of episodes, where each episode is a list of steps.
-        target_policy_probs (dict): A dictionary mapping (state, action) tuples to their probabilities under the target policy.
-        behavior_policy_probs (dict): A dictionary mapping (state, action) tuples to their probabilities under the behavior policy.
-        gamma (float): Discount factor.
-
-    Returns:
-        float: The estimated value of the target policy.
-    """
-    total_weighted_return = 0.0
-    num_episodes = episodes_data['ep'].nunique()
-    print(f"Calculating IS for {num_episodes}")
-
-    if num_episodes == 0:
-        return 0.0
-
-    episode_returns = []
-    for ep in range(num_episodes):
-        episode = episodes_data[episodes_data['ep']==ep]
-        #colocar problemas de soporte
-
-        importance_ratio = calculate_importance_ratio(episode, target_policy, source)
-        episode_return = calculate_return(episode, gamma)
-        episode_returns.append(episode_return)
-
-        total_weighted_return += importance_ratio * episode_return
-    
-    avg_expected_return = mean(episode_returns)
-    return total_weighted_return / num_episodes, avg_expected_return
 
 
 def evaluate_policy_dm(q_net, df, policy_action):
@@ -195,57 +112,15 @@ def doubly_robust(df_episodes, target_policy, q_net, gamma=0.99):
     return V_dr, avg_behavior_return, std_behavior_return
 
 
-def define_rllib_estimators(algo):
-    dr_estimator = DoublyRobust(
-        # policy=algo.get_policy(),
-        policy=algo,
-        gamma=0.99,
-        q_model_config={"type": FQETorchModel, "n_iters": 10, "lr": 0.0005},
-        )
-
-    is_estimator = ImportanceSampling(
-        policy=algo,
-        gamma=0.99,
-        epsilon_greedy=0.05
-    )
-
-    wis_estimator = WeightedImportanceSampling(
-        policy=algo,
-        gamma=0.99,
-        epsilon_greedy=0.05
-    )
-
-    dm_estimator = DirectMethod(
-        policy=algo,
-        gamma=0.99,
-        q_model_config={"type": FQETorchModel, "n_iters": 10, "lr": 0.0005},
-    )
-
-    return dr_estimator, is_estimator, dm_estimator
-
-
-def train_rllib_dm_dr_models(BEH_EPISODES_JSON_TRAIN, reader_beh_train, dr_estimator, dm_estimator):
-    print("\n⏳ Entrenando Q‑model DM and DR ...")
-    for i in range(2000):
-        batch = reader_beh_train.next()
-        dm_r = dm_estimator.train(batch)
-        dr_r = dr_estimator.train(batch)
-        if (i + 1) % 200 == 0:
-            print(f" DM: iter {i+1:>2}: loss={dm_r['loss']:.4f}")
-            print(f" DR: iter {i+1:>2}: loss={dr_r['loss']:.4f}")
-  
-    return dm_estimator, dr_estimator
-
-
 def oppe():
 
     BEH_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/120820251600"
     EVAL_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/130820251600"
     FQE_CHECKPOINT_PATH = "./fqe_checkpoints"
     
-    BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/120820251600/140825_generated_rllib_ppo_rllib_seed_0000_1000eps_200steps_exp_0'
-    BEH_EPISODES_JSON_TEST = '/opt/ml/code/episodes/310720251600/310725_generated_rllib_ppo_rllib_seed_0000_2000eps_200steps_exp_7'
-    BEH_EPISODES_JSON = '/opt/ml/code/episodes/120820251600/140825_generated_rllib_ppo_rllib_seed_0000_1000eps_200steps_exp_0'
+    BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/120820251600/011125_01_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_exp_0'
+    BEH_EPISODES_JSON_TEST = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0'
+    BEH_EPISODES_JSON = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
     EVAL_EPISODES_JSON = '/opt/ml/code/episodes/130820251600/140825_generated_rllib_ppo_rllib_seed_0000_1000eps_200steps_exp_0'
     # EVAL_EPISODES_JSON = '/opt/ml/code/episodes/300720251000/100825_generated_rllib_ppo_rllib_seed_0000_50eps_200steps_exp_0'
     beh_agent = load_checkpoint(BEH_CHECKPOINT_PATH)
@@ -264,19 +139,11 @@ def oppe():
     beh_eps_df = load_json_to_df(reader_beh, 1000)
     beh_test_df = load_json_to_df(reader_beh_test, 2000)
     target_eps_df = load_json_to_df(reader_target, 1000)
-    beh_expected_return, beh_return_stdev = calculate_value_function(beh_eps_df, 0.99)
-    target_expected_return, target_return_stdev = calculate_value_function(target_eps_df, 0.99)
+    beh_expected_return, beh_return_stdev = calculate_policy_expected_value(beh_eps_df, 0.99)
+    target_expected_return, target_return_stdev = calculate_policy_expected_value(target_eps_df, 0.99)
     print(f"Avg_Expecting_Return (BEH_POLICY) Value - RLLIB Generated episodes: {beh_expected_return: .3f} - STD {beh_return_stdev: .3f}")
     print(f"Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes: {target_expected_return: .3f} - STD {target_return_stdev: .3f}")
 
-
-
-    # --------------------------------------------------------------------------- #
-    # IS FROM SCRATCH
-    # --------------------------------------------------------------------------- #
-    is_oppe, avg_expected_return = ordinary_importance_sampling(beh_test_df, eval_agent, gamma=0.99, source='rllib')
-    print("\n=======  RESULTADOS OPPE with Custom Library   =======")
-    print(f"Ordinary Importance Sampling (IS Custom) Value: {is_oppe}")
 
     # --------------------------------------------------------------------------- #
     # DM FROM SCRATCH CON FQTE MODEL YA ENTRENADO
@@ -297,34 +164,6 @@ def oppe():
     V_dr, dr_estimated_value, dr_std = doubly_robust(beh_test_df, eval_agent, q_net)
     print(f"\nValor esperado estimado DR de la política PPO (retorno promedio inicial): {dr_estimated_value:.3f} - STD: {dr_std:.3f}")
 
-    # --------------------------------------------------------------------------- #
-    # RLLIB OPPE: 
-    # 
-    # ENTRENAR ESTIMADOR DM (requiere Q‑model)
-    # --------------------------------------------------------------------------- #
-    # reader_train = JsonReader(reader_beh)  # 200 transiciones/batch
-
-    dr_estimator, is_estimator, dm_estimator = define_rllib_estimators(eval_agent)
-    reader_beh_test = JsonReader(BEH_EPISODES_JSON_TEST)
-    is_values = []
-    for idx in range(2000):
-        batch_test  = reader_beh_test.next()
-        is_value = is_estimator.estimate(batch_test)
-        is_values.append(is_value['v_target'])
-    print(f"Ordinary Importance Sampling (IS RLLIB) Value: {mean(is_values)}")
-
-    dm_estimator, dr_estimator = train_rllib_dm_dr_models(BEH_EPISODES_JSON_TRAIN, reader_beh_train, dr_estimator, dm_estimator)
-    reader_beh_test = JsonReader(BEH_EPISODES_JSON_TEST)
-    dr_ests = []
-    dm_ests = []
-    for i in range(2000):
-            batch = reader_beh_test.next()
-            dr_ests.append(dr_estimator.estimate(batch)['v_target'])
-            dm_ests.append(dm_estimator.estimate(batch)['v_target'])
-
-    print(f'Direct Method (DM) with RLLIB V_ expected estimation {mean(dm_ests)} and STD {stdev(dm_ests)}')
-    print(f'Double Roboust (DR) with RLLIB V_ expected estimation {mean(dr_ests)} and STD {stdev(dr_ests)}')
-
-  
+   
 if __name__ == '__main__':
     oppe()

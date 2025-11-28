@@ -3,7 +3,7 @@ import pandas as pd
 import torch.nn as nn
 import gymnasium as gym
 import numpy as np
-
+import torch
 from ray.rllib.algorithms import Algorithm
 from statistics import mean, stdev
 
@@ -115,3 +115,106 @@ class QNetwork(nn.Module):
         # Pase hacia adelante. Si el estado es un vector 1D, expandir a 2D (batch de tamaño 1).
         return self.net(state)
     
+
+def load_fqte(FQE_CHECKPOINT_PATH, device):
+    if os.path.exists(FQE_CHECKPOINT_PATH):
+        checkpoint = torch.load(FQE_CHECKPOINT_PATH + '/fqe_epoch_80.pt')
+        q_net = QNetwork(8, 4)
+        q_net.load_state_dict(checkpoint["model_state_dict"])
+        q_net.to(device)
+        q_net.eval()
+        start_epoch = checkpoint["epoch"]
+        avg_loss = checkpoint["avg_loss"]
+        print(f"Se cargó el checkpoint desde {FQE_CHECKPOINT_PATH}, entrenadas {start_epoch} épocas con Avg. Loss {avg_loss}")
+        return q_net
+    else:
+        print("Checkpoint not loaded")
+        return None
+
+def tensor_to_numpy(x):
+    # Torch
+    if hasattr(x, "detach"):
+        return x.detach().cpu().numpy()
+    # Por si acaso ya es np.array o lista
+    return np.asarray(x)
+
+
+def add_target_probs(df, target_policy_model):
+    df = df.copy()
+    df["target_prob_accion"] = df.apply(
+        lambda row: get_action_prob(target_policy_model,row["obs"], row["action"], False),
+        axis=1
+    )
+    return df
+
+
+def add_target_probs_log(df, target_policy_model):
+    df = df.copy()
+    df["target_logprob_accion"] = df.apply(
+        lambda row: get_action_prob(target_policy_model,row["obs"], row["action"], True),
+        axis=1
+    )
+    return df
+
+
+def get_action_prob(target_policy, state, action, logp):
+    state = torch.tensor(state)
+    input_dict = {"obs": state}
+    logits, _ = target_policy.model(input_dict, [], None)
+    probs_ = torch.nn.Softmax(dim=1)
+    probs_ = probs_(logits)
+    prob = probs_[0][action]
+    target_prob = prob.detach().numpy()
+    if logp:
+        return np.log(target_prob)
+    else:
+        return target_prob
+
+
+def add_target_logprobs_from_rllib(df: pd.DataFrame,
+                                   policy,
+                                   batch_size: int = 4096) -> pd.DataFrame:
+    """
+    Añade la columna `target_logprob_accion` a un df usando una
+    política PPO de RLlib como target policy.
+
+    Requiere columnas:
+    - 'state'
+    - 'action'
+    """
+    df = df.copy()
+
+    # Pasamos a listas para easy batching
+    obs_list = df["state"].tolist()
+    act_list = df["action"].tolist()
+
+    # Si las acciones son escalares (e.g. Discrete), esto funciona igual;
+    # si son vectores, mejor stackearlos:
+    try:
+        actions_array = np.stack(act_list)
+    except ValueError:
+        # Si no se pueden stackear (p.ej dict o variable shape), las dejamos como lista
+        actions_array = np.array(act_list, dtype=object)
+
+    logps_all = []
+
+    n = len(df)
+    for start in range(0, n, batch_size):
+        end = min(start + batch_size, n)
+
+        # RLlib acepta listas de obs y np.array / listas de acciones
+        obs_batch = obs_list[start:end]
+        act_batch = actions_array[start:end]
+
+        logps_batch_tensor = policy.compute_log_likelihoods(
+            actions=act_batch,
+            obs_batch=obs_batch,
+        )
+
+        logps_batch = tensor_to_numpy(logps_batch_tensor)
+        logps_all.append(logps_batch)
+
+    logps_all = np.concatenate(logps_all, axis=0)
+    df["target_logprob_action"] = logps_all
+
+    return df
