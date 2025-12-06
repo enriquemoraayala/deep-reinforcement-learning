@@ -1,4 +1,8 @@
 
+
+Avg_Expecting_Return (BEH_POLICY) Value - RLLIB Generated episodes:  46.783 - STD  15.784
+Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes:  71.589 - STD  18.908
+
 ===================================================================================================
 
 ---> dqn-atari/03.01_oppe_from_scratch_is.py
@@ -29,8 +33,7 @@ FQE_CHECKPOINT_PATH = "./fqe_checkpoints"
     *BEH_EPISODES_JSON_TEST = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0'
     BEH_EPISODES_JSON = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
     EVAL_EPISODES_JSON = '/opt/ml/code/episodes/130820251600/140825_generated_rllib_ppo_rllib_seed_0000_1000eps_200steps_exp_0'
-Avg_Expecting_Return (BEH_POLICY) Value - RLLIB Generated episodes:  46.783 - STD  15.784
-Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes:  71.589 - STD  18.908
+
 
 Se cargó el checkpoint desde ./fqe_checkpoints, entrenadas 80 épocas con Avg. Loss 2.8818980979652298
 

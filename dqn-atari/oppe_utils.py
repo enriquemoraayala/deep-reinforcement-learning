@@ -16,10 +16,16 @@ def load_checkpoint(checkpoint_path):
 
 def load_json_to_df(reader, num_eps):
     rows = []
+    eps_num = []
+    total_eps = 0
+    total_steps = 0
     # reader = JsonReader(json_path)
     for i in range(num_eps):
+        total_eps += 1
         episode = reader.next()
+        eps_num.append(episode['eps_id'][0])
         for step in range(len(episode)):
+            total_steps += 1
             row = {'ep': episode['eps_id'][step],
                    'step': step,
                    'obs': episode['obs'][step],
@@ -28,10 +34,64 @@ def load_json_to_df(reader, num_eps):
                    'logprob': episode['action_logp'][step],
                    'reward': episode['rewards'][step],
                    'next_state': episode['new_obs'][step],
-                   'done': episode['dones'][step]
+                   'truncated': episode['truncateds'][step],
+                   'terminated': episode['terminateds'][step],
+                   'done': episode['terminateds'][step], #considero terminated == done para compatibilidad
             }
             rows.append(row)
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows), total_eps, total_steps
+
+
+
+def load_json_to_df_max(reader, max_episodes=None):
+    """
+    Convierte la/s salida/s JSON de RLlib (JsonReader) en un DataFrame de pandas.
+
+    - reader: instancia de JsonReader.
+    - max_episodes: nº máximo de episodios (eps_id distintos) a leer.
+                    Si es None, recorre todos los ficheros una vez.
+
+    Devuelve:
+        df, num_episodios_distintos, total_steps
+    """
+    rows = []
+    total_steps = 0
+    seen_eps = set()
+
+    # 🔑 IMPORTANTE: usar read_all_files() en lugar de next()
+    for batch in reader.read_all_files():
+
+        batch_len = len(batch)  # nº de timesteps en este batch
+
+        for t in range(batch_len):
+            ep_id = batch["eps_id"][t]
+            seen_eps.add(ep_id)
+            total_steps += 1
+
+            row = {
+                "ep": ep_id,
+                "step": batch["t"][t],
+                "obs": batch["obs"][t],
+                "action": batch["actions"][t],
+                "action_prob": batch["action_prob"][t],
+                "logprob": batch["action_logp"][t],
+                "reward": batch["rewards"][t],
+                "next_state": batch["new_obs"][t],
+                "truncated": batch["truncateds"][t],
+                "terminated": batch["terminateds"][t],
+                # done ≈ terminated para compatibilidad
+                "done": batch["terminateds"][t],
+            }
+            rows.append(row)
+
+        # Si queremos parar tras cierto nº de episodios distintos
+        if max_episodes is not None and len(seen_eps) >= max_episodes:
+            break
+
+    df = pd.DataFrame(rows)
+    num_episodes = len(seen_eps)
+    return df, num_episodes, total_steps
+
 
 def calculate_policy_expected_value(episodes_df, gamma=0.99):
     episodes_idx = episodes_df['ep'].unique()
