@@ -3,7 +3,7 @@ import debugpy
 from ray.rllib.offline.json_reader import JsonReader
 from oppe_utils import load_json_to_df, load_json_to_df_max
 
-debug = 1
+debug = 0
 
 if debug == 1:
     # Escucha en el puerto 5678 (puedes cambiarlo)
@@ -11,11 +11,11 @@ if debug == 1:
     print("Esperando debugger de VS Code para conectar...")
     debugpy.wait_for_client()
 
-BEH_EPISODES_JSON = "/opt/ml/code/episodes/120820251600/011125_01_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_exp_0"
-reader_beh = JsonReader(BEH_EPISODES_JSON)
+EPISODES_JSON = '/opt/ml/code/episodes/130820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
+reader_beh = JsonReader(EPISODES_JSON)
 df, eps, steps = load_json_to_df_max(reader_beh, 100000)
 
-print(f"Transformed {eps} episodes with a total of {steps}")
+print(f"Transformed {eps} episodes with a total of {steps} steps")
 
 episode_lengths = df.groupby("ep")["step"].count()
 

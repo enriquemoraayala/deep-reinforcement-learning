@@ -10,7 +10,7 @@ import pandas as pd
 import ray
 
 from statistics import mean
-from oppe_utils import load_checkpoint, load_json_to_df, calculate_value_function
+from oppe_utils import load_checkpoint, load_json_to_df, calculate_policy_expected_value, load_json_to_df_max
 from ray.rllib.offline.json_reader import JsonReader
 from ray.rllib.algorithms import Algorithm
 
@@ -199,14 +199,14 @@ def evaluate_policy(q_net, df, policy_action):
 
 def oppe():
 
-    BEH_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/310720251600"
-    EVAL_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/300720251000"
-    
-    BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/310720251600/310725_generated_rllib_ppo_rllib_seed_0000_2000eps_200steps_exp_0'
-    BEH_EPISODES_JSON_TEST = '/opt/ml/code/episodes/310720251600/310725_generated_rllib_ppo_rllib_seed_0000_200eps_200steps_exp_0'
-    BEH_EPISODES_JSON = '/opt/ml/code/episodes/310720251600/010825_generated_rllib_ppo_rllib_seed_0000_1000eps_200steps_exp_0'
-    EVAL_EPISODES_JSON = '/opt/ml/code/episodes/300720251000/050825_generated_rllib_ppo_rllib_seed_0000_1000eps_200steps_exp_0'
-    
+    BEH_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/120820251600"
+    EVAL_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/130820251600"
+    FQE_CHECKPOINT_PATH = "./fqe_checkpoints"
+
+    BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/120820251600/011125_01_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_exp_0'
+    BEH_EPISODES_JSON_TEST = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0'
+    BEH_EPISODES_JSON_VAL = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
+    EVAL_EPISODES_JSON = '/opt/ml/code/episodes/130820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
 
     # beh_agent = load_checkpoint(BEH_CHECKPOINT_PATH)
     eval_agent = load_checkpoint(EVAL_CHECKPOINT_PATH)
@@ -214,28 +214,36 @@ def oppe():
     # ---------------------------------------------------------------------------#
     # 1. Real Expected Value for the policies based in the current json episodes 
     # --------------------------------------------------------------------------- #
-    reader_beh = JsonReader(BEH_EPISODES_JSON)
+    reader_beh_val = JsonReader(BEH_EPISODES_JSON_VAL)
     reader_beh_train = JsonReader(BEH_EPISODES_JSON_TRAIN)
     reader_beh_test = JsonReader(BEH_EPISODES_JSON_TEST)
     reader_target = JsonReader(EVAL_EPISODES_JSON)
-    beh_eps_df = load_json_to_df(reader_beh, 1000)
-    target_eps_df = load_json_to_df(reader_target, 2)
-    beh_expected_return = calculate_value_function(beh_eps_df, 0.99)
-    target_expected_return = calculate_value_function(target_eps_df, 0.99)
-    print(f"Avg_Expecting_Return (BEH_POLICY) Value - RLLIB Generated episodes: {beh_expected_return}")
-    print(f"Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes: {target_expected_return}")
+    beh_eps_d_val, eps, steps = load_json_to_df_max(reader_beh_val, 100000)
+    print(f'loaded JSON: {BEH_EPISODES_JSON_VAL}')
+    print(f"Transformed {eps} episodes with a total of {steps} steps")
+    target_eps_df, eps, steps = load_json_to_df_max(reader_target, 100000)
+    print(f'loaded JSON: {EVAL_EPISODES_JSON}')
+    print(f"Transformed {eps} episodes with a total of {steps} steps")
+    beh_expected_return, beh_return_stdev = calculate_policy_expected_value(beh_eps_d_val, 0.99)
+    target_expected_return, target_return_stdev = calculate_policy_expected_value(target_eps_df, 0.99)
+    print(f"Avg_Expecting_Return (BEH_POLICY) Value - RLLIB Generated episodes: {beh_expected_return: .3f} - STD {beh_return_stdev: .3f}")
+    print(f"Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes: {target_expected_return: .3f} - STD {target_return_stdev: .3f}")
 
     # --------------------------------------------------------------------------- #
     # 2. ENTRENAR ESTIMADOR DM (requiere Q‑model)
     # --------------------------------------------------------------------------- #
    
     print("\n⏳ Entrenando Q‑model (DM)...")
-    SAVE_DIR = "./fqe_checkpoints"
+    SAVE_DIR = "./20251208_fqe_checkpoints"
     os.makedirs(SAVE_DIR, exist_ok=True)
     USE_TRAINED_FQTE = 0
+    RESUME_TRAINING = 0
     if USE_TRAINED_FQTE == 0:
-        beh_train_df = load_json_to_df(reader_beh_train, 2000)
-        q_net = train_nn(beh_train_df, eval_agent, SAVE_DIR)
+        beh_train_df, eps, steps = load_json_to_df_max(reader_beh_train, 100000)
+        print(f'loaded JSON: {BEH_EPISODES_JSON_TRAIN}')
+        print(f"Transformed {eps} episodes with a total of {steps} steps")
+        # beh_train_df = load_json_to_df(reader_beh_train, 2000)
+        q_net = train_nn(beh_train_df, eval_agent, SAVE_DIR, RESUME_TRAINING)
     else:
         if os.path.exists(SAVE_DIR):
             checkpoint = torch.load(SAVE_DIR + '/fqe_epoch_15.pt')
@@ -245,7 +253,9 @@ def oppe():
             avg_loss = checkpoint["avg_loss"]
             print(f"Se cargó el checkpoint desde {SAVE_DIR}, entrenadas {start_epoch} épocas con Avg. Loss {avg_loss}")
     
-    beh_test_df = load_json_to_df(reader_beh_test, 200)
+    beh_test_df, eps, steps = load_json_to_df_max(reader_beh_test, 100000)
+    print(f'loaded JSON: {BEH_EPISODES_JSON_TRAIN}')
+    print(f"Transformed {eps} episodes with a total of {steps} steps")
     evaluate_policy(q_net, beh_test_df, eval_agent)
  
     

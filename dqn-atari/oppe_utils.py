@@ -210,7 +210,7 @@ def add_target_probs(df, target_policy_model):
 
 def add_target_probs_log(df, target_policy_model):
     df = df.copy()
-    df["target_logprob_accion"] = df.apply(
+    df["target_logprob_action"] = df.apply(
         lambda row: get_action_prob(target_policy_model,row["obs"], row["action"], True),
         axis=1
     )
@@ -239,13 +239,13 @@ def add_target_logprobs_from_rllib(df: pd.DataFrame,
     política PPO de RLlib como target policy.
 
     Requiere columnas:
-    - 'state'
+    - 'obs'
     - 'action'
     """
     df = df.copy()
 
     # Pasamos a listas para easy batching
-    obs_list = df["state"].tolist()
+    obs_list = df["obs"].tolist()
     act_list = df["action"].tolist()
 
     # Si las acciones son escalares (e.g. Discrete), esto funciona igual;

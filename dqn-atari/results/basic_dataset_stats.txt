@@ -1,0 +1,128 @@
+BEH_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/120820251600"
+EVAL_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/130820251600"
+FQE_CHECKPOINT_PATH = "./fqe_checkpoints"
+
+BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/120820251600/011125_01_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_exp_0'
+BEH_EPISODES_JSON_TEST = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0'
+BEH_EPISODES_JSON_VAL = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
+EVAL_EPISODES_JSON = '/opt/ml/code/episodes/130820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
+
+
+
+##################################3
+ BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/120820251600/011125_01_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_exp_0'
+
+Transformed 10000 episodes with a total of 2605239 steps
+truncated     False  True 
+terminated                
+False       2595239   6181
+True           3805     14
+📊 Estadísticas de los episodios:
+        num_episodes: 10000.000
+          length_min: 105
+          length_max: 300
+          length_avg: 260.524
+          reward_min: -597.966
+          reward_max: 279.813
+          reward_avg: 102.339
+          reward_std: 74.388
+episodes_lt_300_steps: 3805
+episodes_g_300_steps: 0
+episodes_e_300_steps: 6195
+           truncated: truncated
+False    2599044
+True        6195
+Name: count, dtype: int64
+          terminated: terminated
+False    2601420
+True        3819
+Name: count, dtype: int64
+
+
+##############################################
+
+BEH_EPISODES_JSON_TEST = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0'
+
+Transformed 2000 episodes with a total of 521601 steps
+truncated    False  True 
+terminated               
+False       519601   1227
+True           771      2
+📊 Estadísticas de los episodios:
+        num_episodes: 2000.000
+          length_min: 104
+          length_max: 300
+          length_avg: 260.800
+          reward_min: -231.058
+          reward_max: 272.009
+          reward_avg: 104.313
+          reward_std: 74.591
+episodes_lt_300_steps: 771
+episodes_g_300_steps: 0
+episodes_e_300_steps: 1229
+           truncated: truncated
+False    520372
+True       1229
+Name: count, dtype: int64
+          terminated: terminated
+False    520828
+True        773
+Name: count, dtype: int64
+
+
+#########################################################################################################3
+BEH_EPISODES_JSON = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
+
+Transformed 1000 episodes with a total of 260658 steps
+truncated    False  True 
+terminated               
+False       259658    621
+True           377      2
+📊 Estadísticas de los episodios:
+        num_episodes: 1000.000
+          length_min: 106
+          length_max: 300
+          length_avg: 260.658
+          reward_min: -386.794
+          reward_max: 266.091
+          reward_avg: 103.180
+          reward_std: 74.537
+episodes_lt_300_steps: 377
+episodes_g_300_steps: 0
+episodes_e_300_steps: 623
+           truncated: truncated
+False    260035
+True        623
+Name: count, dtype: int64
+          terminated: terminated
+False    260279
+True        379
+Name: count, dtype: int64
+
+
+################################################################################3333
+Transformed 1000 episodes with a total of 212478 steps
+truncated    False  True 
+terminated               
+False       211478     79
+True           921      0
+📊 Estadísticas de los episodios:
+        num_episodes: 1000.000
+          length_min: 125
+          length_max: 300
+          length_avg: 212.478
+          reward_min: 2.772
+          reward_max: 323.363
+          reward_avg: 251.463
+          reward_std: 51.874
+episodes_lt_300_steps: 921
+episodes_g_300_steps: 0
+episodes_e_300_steps: 79
+           truncated: truncated
+False    212399
+True         79
+Name: count, dtype: int64
+          terminated: terminated
+False    211557
+True        921
+Name: count, dtype: int64
