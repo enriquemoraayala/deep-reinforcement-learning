@@ -1,0 +1,428 @@
+"""
+Azure ML-ready training script for FQTE / FQE.
+
+Changes vs original:
+- No hardcoded /opt/ml/code paths: everything is passed via argparse (AML inputs/outputs).
+- Episodes JSON directories come from an AML uri_folder mount/download.
+- Checkpoints + final model saved under the AML output directory so they can be reused later.
+- Resume training loads the latest checkpoint automatically (if present).
+
+Typical AML command example:
+  python train_fqte_aml.py \
+    --beh_checkpoint_dir ${{inputs.beh_ckpt}} \
+    --eval_checkpoint_dir ${{inputs.eval_ckpt}} \
+    --episodes_root ${{inputs.episodes}} \
+    --beh_train_rel 120820251600/...train_folder... \
+    --beh_test_rel  120820251600/...test_folder... \
+    --beh_val_rel   120820251600/...val_folder... \
+    --target_eval_rel 130820251600/...target_folder... \
+    --output_dir ${{outputs.model}}
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+from pathlib import Path
+from typing import Optional, Tuple, Dict, Any, List
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+import ray
+from ray.rllib.offline.json_reader import JsonReader
+
+# Your helper utils (must be available in the code folder / image)
+from oppe_utils import (
+    load_checkpoint,
+    calculate_policy_expected_value,
+    load_json_to_df_max,
+)
+
+# Optional debugging (won't fail if debugpy isn't installed in the image)
+try:
+    import debugpy  # type: ignore
+except Exception:  # pragma: no cover
+    debugpy = None
+
+
+# Reproducibility (optional)
+torch.manual_seed(0)
+np.random.seed(0)
+
+
+# == Q-network for FQE ==
+class QNetwork(nn.Module):
+    def __init__(self, state_dim: int, num_actions: int, hidden_size: int = 64):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(state_dim, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, num_actions),
+        )
+
+    def forward(self, state: torch.Tensor) -> torch.Tensor:
+        return self.net(state)
+
+
+def _infer_state_dim(states: torch.Tensor) -> int:
+    """
+    states may be shaped:
+      - (N, D)
+      - (N, 1, D)  (common when obs are stored as [1, D])
+      - (N, ..., D) -> we use last dim
+    """
+    if states.ndim >= 2:
+        return int(states.shape[-1])
+    return 1
+
+
+def _find_latest_checkpoint(save_dir: Path) -> Optional[Path]:
+    ckpts = sorted(save_dir.glob("fqe_epoch_*.pt"))
+    if not ckpts:
+        return None
+    # Prefer numeric sort by epoch
+    def epoch_num(p: Path) -> int:
+        m = __import__("re").search(r"fqe_epoch_(\d+)\.pt$", p.name)
+        return int(m.group(1)) if m else -1
+    ckpts = sorted(ckpts, key=epoch_num)
+    return ckpts[-1]
+
+
+def train_nn(
+    df,
+    policy_action,
+    save_dir: Path,
+    resume_training: bool = True,
+    num_epochs: int = 75,
+    batch_size: int = 2048,
+    target_update_interval: int = 5,
+    save_every: int = 5,
+    lr: float = 5e-4,
+    gamma: float = 0.99,
+) -> Tuple[QNetwork, Dict[str, Any]]:
+    """
+    Trains an FQE-style Q network.
+
+    Returns:
+      - trained q_net
+      - metadata dict (state_dim, num_actions, gamma, etc.)
+    """
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    # Data to tensors
+    states = torch.tensor(np.stack(df["obs"].values), dtype=torch.float32)
+    actions = torch.tensor(df["action"].values, dtype=torch.int64)
+    rewards = torch.tensor(df["reward"].values, dtype=torch.float32)
+    next_states = torch.tensor(np.stack(df["next_state"].values), dtype=torch.float32)
+    dones = torch.tensor(df["done"].values, dtype=torch.float32)
+
+    state_dim = _infer_state_dim(states)
+    num_actions = int(actions.max().item() + 1)
+
+    print(f"[FQE] state_dim={state_dim} num_actions={num_actions}")
+    print(f"[FQE] dataset transitions={states.shape[0]} batch_size={batch_size} num_epochs={num_epochs}")
+
+    q_net = QNetwork(state_dim, num_actions)
+    target_net = QNetwork(state_dim, num_actions)
+    target_net.load_state_dict(q_net.state_dict())
+    target_net.eval()
+
+    optimizer = optim.Adam(q_net.parameters(), lr=lr)
+    criterion = nn.MSELoss()
+
+    # Resume from latest checkpoint (if any)
+    start_epoch = 0
+    if resume_training:
+        latest = _find_latest_checkpoint(save_dir)
+        if latest is not None:
+            checkpoint = torch.load(latest, map_location="cpu")
+            q_net.load_state_dict(checkpoint["model_state_dict"])
+            target_net.load_state_dict(checkpoint["target_model_state_dict"])
+            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+            start_epoch = int(checkpoint["epoch"])
+            print(f"[FQE] Resuming from {latest} (start_epoch={start_epoch})")
+        else:
+            print("[FQE] No checkpoint found, training from scratch.")
+    else:
+        print("[FQE] resume_training=False, training from scratch.")
+
+    # Training loop
+    for epoch in range(start_epoch, num_epochs):
+        indices = torch.randperm(states.shape[0])
+        batch_losses: List[float] = []
+
+        for i in range(0, states.shape[0], batch_size):
+            batch_idx = indices[i : i + batch_size]
+            batch_states = states[batch_idx]
+            batch_actions = actions[batch_idx]
+            batch_rewards = rewards[batch_idx]
+            batch_next_states = next_states[batch_idx]
+            batch_dones = dones[batch_idx]
+
+            # Forward: Q(s, :)
+            q_values = q_net(batch_states).squeeze(1)
+            q_sa = q_values.gather(1, batch_actions.view(-1, 1)).squeeze(1)
+
+            # Target: r + gamma * Q_target(s', a'(s'))
+            with torch.no_grad():
+                next_actions = []
+                for ns in batch_next_states:
+                    a_prime, _, _info = policy_action.compute_single_action(ns, explore=False)
+                    next_actions.append(a_prime)
+                next_actions = torch.tensor(next_actions, dtype=torch.int64)
+
+                q_next = target_net(batch_next_states)
+                q_next_sa = q_next.gather(1, next_actions.view(-1, 1)).squeeze(1)
+                q_next_sa = q_next_sa * (1 - batch_dones)
+
+                target_values = batch_rewards + gamma * q_next_sa
+
+            loss = criterion(q_sa, target_values)
+            batch_losses.append(float(loss.item()))
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        # Target update
+        if (epoch + 1) % target_update_interval == 0:
+            target_net.load_state_dict(q_net.state_dict())
+
+        # Checkpoint
+        if (epoch + 1) % save_every == 0 or (epoch + 1) == num_epochs:
+            checkpoint = {
+                "epoch": epoch + 1,
+                "model_state_dict": q_net.state_dict(),
+                "target_model_state_dict": target_net.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "avg_loss": float(np.mean(batch_losses)) if batch_losses else None,
+                "state_dim": state_dim,
+                "num_actions": num_actions,
+                "gamma": gamma,
+                "lr": lr,
+            }
+            checkpoint_path = save_dir / f"fqe_epoch_{epoch+1}.pt"
+            torch.save(checkpoint, checkpoint_path)
+            print(f"[FQE] Saved checkpoint: {checkpoint_path}")
+
+        if (epoch + 1) % target_update_interval == 0 or epoch == start_epoch:
+            avg_loss = float(np.mean(batch_losses)) if batch_losses else float("nan")
+            print(f"[FQE] Epoch {epoch+1}/{num_epochs} avg_loss={avg_loss:.6f}")
+
+    meta = {
+        "state_dim": state_dim,
+        "num_actions": num_actions,
+        "gamma": gamma,
+        "lr": lr,
+        "num_epochs": num_epochs,
+        "batch_size": batch_size,
+        "target_update_interval": target_update_interval,
+        "save_every": save_every,
+    }
+    return q_net, meta
+
+
+def evaluate_policy(q_net: QNetwork, df, policy_action) -> Optional[float]:
+    states = torch.tensor(np.stack(df["obs"].values), dtype=torch.float32)
+
+    q_net.eval()
+    initial_state_indices = []
+    N = len(df)
+    for i in range(N):
+        if i == 0 or df.iloc[i - 1]["done"]:
+            initial_state_indices.append(i)
+
+    if not initial_state_indices:
+        print("[Eval] No initial states found (check df ordering / done flags).")
+        return None
+
+    initial_states = states[initial_state_indices]
+    values = []
+    for s in initial_states:
+        a, _, _info = policy_action.compute_single_action(s, explore=False)
+        q_value = q_net(s)
+        q_value_sa = q_value[0, a].item()
+        values.append(q_value_sa)
+
+    estimated_value = float(np.mean(values))
+    print(f"[Eval] Estimated expected value from initial states: {estimated_value:.6f}")
+    return estimated_value
+
+
+def _resolve_dir(root: Path, rel: str) -> Path:
+    p = (root / rel).resolve()
+    if not p.exists():
+        raise FileNotFoundError(f"Path does not exist: {p}")
+    return p
+
+
+def run_oppe(args: argparse.Namespace) -> None:
+    episodes_root = Path(args.episodes_root).resolve()
+    output_dir = Path(args.output_dir).resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Put FQE checkpoints inside output so AML uploads them
+    save_dir = output_dir / args.checkpoints_subdir
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    # Resolve episode dirs
+    beh_train_dir = _resolve_dir(episodes_root, args.beh_train_rel)
+    beh_test_dir = _resolve_dir(episodes_root, args.beh_test_rel)
+    beh_val_dir = _resolve_dir(episodes_root, args.beh_val_rel)
+    target_eval_dir = _resolve_dir(episodes_root, args.target_eval_rel)
+
+    print("[Paths] episodes_root:", episodes_root)
+    print("[Paths] beh_train_dir:", beh_train_dir)
+    print("[Paths] beh_test_dir :", beh_test_dir)
+    print("[Paths] beh_val_dir  :", beh_val_dir)
+    print("[Paths] target_eval_dir:", target_eval_dir)
+    print("[Paths] beh_checkpoint_dir:", args.beh_checkpoint_dir)
+    print("[Paths] eval_checkpoint_dir:", args.eval_checkpoint_dir)
+    print("[Paths] output_dir:", output_dir)
+    print("[Paths] save_dir (checkpoints):", save_dir)
+
+    # Load target policy (PPO) checkpoint
+    eval_agent = load_checkpoint(args.eval_checkpoint_dir)
+
+    # Readers
+    reader_beh_val = JsonReader(str(beh_val_dir))
+    reader_beh_train = JsonReader(str(beh_train_dir))
+    reader_beh_test = JsonReader(str(beh_test_dir))
+    reader_target = JsonReader(str(target_eval_dir))
+
+    # ---------------------------------------------------------------------------#
+    # 1) "Real" expected value from recorded episodes (baseline check)
+    # ---------------------------------------------------------------------------#
+    beh_eps_val_df, eps, steps = load_json_to_df_max(reader_beh_val)
+    print(f"[Data] loaded beh_val episodes: eps={eps} steps={steps}")
+
+    target_eps_df, eps_t, steps_t = load_json_to_df_max(reader_target)
+    print(f"[Data] loaded target_eval episodes: eps={eps_t} steps={steps_t}")
+
+    beh_expected_return, beh_return_stdev = calculate_policy_expected_value(beh_eps_val_df, args.gamma)
+    target_expected_return, target_return_stdev = calculate_policy_expected_value(target_eps_df, args.gamma)
+
+    print(f"[Returns] BEH_POLICY  mean={beh_expected_return:.6f} std={beh_return_stdev:.6f}")
+    print(f"[Returns] TARGET_POLICY mean={target_expected_return:.6f} std={target_return_stdev:.6f}")
+
+    # ---------------------------------------------------------------------------#
+    # 2) Train DM estimator (FQE Q-model)
+    # ---------------------------------------------------------------------------#
+    print("\n[FQE] Training Q-model...")
+    beh_train_df, eps_train, steps_train = load_json_to_df_max(reader_beh_train, args.beh_train_limit)
+    print(f"[Data] loaded beh_train episodes: eps={eps_train} steps={steps_train} limit={args.beh_train_limit}")
+
+    q_net, meta = train_nn(
+        beh_train_df,
+        eval_agent,
+        save_dir=save_dir,
+        resume_training=args.resume_training,
+        num_epochs=args.num_epochs,
+        batch_size=args.batch_size,
+        target_update_interval=args.target_update_interval,
+        save_every=args.save_every,
+        lr=args.lr,
+        gamma=args.gamma,
+    )
+
+    # Evaluate on test
+    beh_test_df, eps_test, steps_test = load_json_to_df_max(reader_beh_test, args.beh_test_limit)
+    print(f"[Data] loaded beh_test episodes: eps={eps_test} steps={steps_test} limit={args.beh_test_limit}")
+    est_value = evaluate_policy(q_net, beh_test_df, eval_agent)
+
+    # Save final artifacts (AML will upload output_dir)
+    #  - a "final" pt with state_dict + metadata
+    final_path = output_dir / "fqe_final.pt"
+    torch.save(
+        {
+            "model_state_dict": q_net.state_dict(),
+            "meta": meta,
+            "estimated_value_test": est_value,
+        },
+        final_path,
+    )
+    print(f"[FQE] Saved final model to: {final_path}")
+
+    # - also save metadata as json for convenience
+    meta_path = output_dir / "fqe_meta.json"
+    try:
+        import json
+        with meta_path.open("w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    **meta,
+                    "estimated_value_test": est_value,
+                    "beh_expected_return_val": beh_expected_return,
+                    "target_expected_return_eval": target_expected_return,
+                    "beh_val_std": beh_return_stdev,
+                    "target_eval_std": target_return_stdev,
+                },
+                f,
+                indent=2,
+                sort_keys=True,
+            )
+        print(f"[FQE] Saved metadata to: {meta_path}")
+    except Exception as e:
+        print(f"[Warn] Could not write meta json: {e}")
+
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser()
+
+    # AML inputs/outputs
+    p.add_argument("--episodes_root", type=str, required=True, help="AML uri_folder mount/download root containing JSON episode folders.")
+    p.add_argument("--output_dir", type=str, required=True, help="AML output folder (e.g., ${{outputs.model}}).")
+
+    # Checkpoints for policies (RLlib)
+    p.add_argument("--beh_checkpoint_dir", type=str, required=False, default="", help="(Optional) Behavior policy checkpoint dir if needed.")
+    p.add_argument("--eval_checkpoint_dir", type=str, required=True, help="Target/eval policy checkpoint dir (RLlib).")
+
+    # Episode subfolders inside episodes_root
+    p.add_argument("--beh_train_rel", type=str, required=True, help="Relative path under episodes_root to behavior TRAIN episodes folder.")
+    p.add_argument("--beh_test_rel", type=str, required=True, help="Relative path under episodes_root to behavior TEST episodes folder.")
+    p.add_argument("--beh_val_rel", type=str, required=True, help="Relative path under episodes_root to behavior VAL episodes folder.")
+    p.add_argument("--target_eval_rel", type=str, required=True, help="Relative path under episodes_root to target/eval episodes folder.")
+
+    # Training limits / hyperparams
+    p.add_argument("--beh_train_limit", type=int, default=100000, help="Max transitions to load for training (passed to load_json_to_df_max).")
+    p.add_argument("--beh_test_limit", type=int, default=2000, help="Max transitions to load for test (passed to load_json_to_df_max).")
+    p.add_argument("--num_epochs", type=int, default=75)
+    p.add_argument("--batch_size", type=int, default=2048)
+    p.add_argument("--target_update_interval", type=int, default=5)
+    p.add_argument("--save_every", type=int, default=5)
+    p.add_argument("--lr", type=float, default=5e-4)
+    p.add_argument("--gamma", type=float, default=0.99)
+
+    # Persistence / resume
+    p.add_argument("--checkpoints_subdir", type=str, default="fqe_checkpoints", help="Subdir inside output_dir to store checkpoints.")
+    p.add_argument("--resume_training", action="store_true", help="Resume from latest checkpoint if present in checkpoints_subdir.")
+    p.add_argument("--no_resume_training", dest="resume_training", action="store_false")
+    p.set_defaults(resume_training=True)
+
+    # Debugging
+    p.add_argument("--debug", action="store_true", help="Enable debugpy wait_for_client on port 5678 (if debugpy installed).")
+
+    return p.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+
+    if args.debug and debugpy is not None:
+        debugpy.listen(("0.0.0.0", 5678))
+        print("Waiting for VS Code debugger attach on port 5678...")
+        debugpy.wait_for_client()
+
+    ray.init(ignore_reinit_error=True, include_dashboard=False)
+    print("[Ray] version:", ray.__version__)
+
+    run_oppe(args)
+
+
+if __name__ == "__main__":
+    main()

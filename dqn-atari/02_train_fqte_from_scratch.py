@@ -73,10 +73,10 @@ def train_nn(df, policy_action, save_dir, resume_training=1):
     gamma = 0.99              # factor de descuento (ajustar según el entorno)
 
     # Opciones de entrenamiento
-    batch_size = 512
-    num_epochs = 100  # número de épocas de entrenamiento (pasadas completas por el dataset)
-    target_update_interval = 10  # cada cuántas épocas sincronizar la red target con la principal
-    save_every = 20
+    batch_size = 2048
+    num_epochs = 75  # número de épocas de entrenamiento (pasadas completas por el dataset)
+    target_update_interval = 5  # cada cuántas épocas sincronizar la red target con la principal
+    save_every = 5
 
     # Leyendo estado anterior si existe 
     if os.path.exists(save_dir) and resume_training==1:
@@ -201,7 +201,7 @@ def oppe():
 
     BEH_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/120820251600"
     EVAL_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/130820251600"
-    FQE_CHECKPOINT_PATH = "./fqe_checkpoints"
+    FQE_CHECKPOINT_PATH = "./fqe_checkpoints/20260401"
 
     BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/120820251600/011125_01_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_exp_0'
     BEH_EPISODES_JSON_TEST = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0'
@@ -218,10 +218,10 @@ def oppe():
     reader_beh_train = JsonReader(BEH_EPISODES_JSON_TRAIN)
     reader_beh_test = JsonReader(BEH_EPISODES_JSON_TEST)
     reader_target = JsonReader(EVAL_EPISODES_JSON)
-    beh_eps_d_val, eps, steps = load_json_to_df_max(reader_beh_val, 100000)
+    beh_eps_d_val, eps, steps = load_json_to_df_max(reader_beh_val)
     print(f'loaded JSON: {BEH_EPISODES_JSON_VAL}')
     print(f"Transformed {eps} episodes with a total of {steps} steps")
-    target_eps_df, eps, steps = load_json_to_df_max(reader_target, 100000)
+    target_eps_df, eps, steps = load_json_to_df_max(reader_target)
     print(f'loaded JSON: {EVAL_EPISODES_JSON}')
     print(f"Transformed {eps} episodes with a total of {steps} steps")
     beh_expected_return, beh_return_stdev = calculate_policy_expected_value(beh_eps_d_val, 0.99)
@@ -237,9 +237,9 @@ def oppe():
     SAVE_DIR = "./20251208_fqe_checkpoints"
     os.makedirs(SAVE_DIR, exist_ok=True)
     USE_TRAINED_FQTE = 0
-    RESUME_TRAINING = 0
+    RESUME_TRAINING = 1
     if USE_TRAINED_FQTE == 0:
-        beh_train_df, eps, steps = load_json_to_df_max(reader_beh_train, 100000)
+        beh_train_df, eps, steps = load_json_to_df_max(reader_beh_train, 50000)
         print(f'loaded JSON: {BEH_EPISODES_JSON_TRAIN}')
         print(f"Transformed {eps} episodes with a total of {steps} steps")
         # beh_train_df = load_json_to_df(reader_beh_train, 2000)

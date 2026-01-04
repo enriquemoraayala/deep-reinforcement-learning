@@ -1,0 +1,17 @@
+# datasets / carpetas enormes
+dqn-atari/
+20251208_fqe_checkpoints/
+datasets/
+episodes/
+fqe_checkpoints/
+oppe/
+offlune_cartpole/
+output_gifs/
+results/
+roms/
+Dockers/
+# outputs / logs típicos
+__pycache__/
+.ipynb_checkpoints/
+# checkpoints locales si los tienes duplicados
+checkpoints/

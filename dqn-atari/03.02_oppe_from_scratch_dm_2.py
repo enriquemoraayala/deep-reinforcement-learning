@@ -12,7 +12,7 @@ import torch.nn as nn
 import ray
 import json
 
-from oppe_utils import load_checkpoint, load_json_to_df, calculate_policy_expected_value, load_fqte
+from oppe_utils import load_checkpoint, load_json_to_df_max, calculate_policy_expected_value, load_fqte
 from statistics import mean, stdev
 from ray.rllib.policy.policy import Policy
 from ray.rllib.offline.json_reader import JsonReader
@@ -170,8 +170,8 @@ def oppe():
     reader_beh_train = JsonReader(BEH_EPISODES_JSON_TRAIN)
     reader_beh_test = JsonReader(BEH_EPISODES_JSON_TEST)
     reader_target = JsonReader(EVAL_EPISODES_JSON)
-    beh_eps_df = load_json_to_df(reader_beh, 2000)
-    target_eps_df = load_json_to_df(reader_target, 1000)
+    beh_eps_df = load_json_to_df_max(reader_beh, 2000)
+    target_eps_df = load_json_to_df_max(reader_target, 1000)
     beh_expected_return, beh_return_stdev = calculate_policy_expected_value(beh_eps_df, 0.99)
     target_expected_return, target_return_stdev = calculate_policy_expected_value(target_eps_df, 0.99)
     print(f"Avg_Expecting_Return (BEH_POLICY) Value - RLLIB Generated episodes: {beh_expected_return: .3f} - STD {beh_return_stdev: .3f}")

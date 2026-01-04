@@ -1,0 +1,45 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandJob.schema.json
+type: command
+
+display_name: fqte-train-lunarlander
+experiment_name: fqte
+
+code: .
+command: >-
+  python 02_train_fqte_from_scratch_aml_gpu.py
+  --episodes_root ${{inputs.episodes}}
+  --beh_train_rel 120820251600/011125_01_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_exp_0
+  --beh_test_rel  120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0
+  --beh_val_rel   120820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0
+  --target_eval_rel 130820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0
+  --eval_checkpoint_dir ${{inputs.episodes}}/checkpoints/130820251600
+  --output_dir ${{outputs.model}}
+  --num_epochs 75
+  --batch_size 2048
+  --target_update_interval 5
+  --save_every 5
+  --lr 5e-4
+  --gamma 0.99
+  --resume_training
+
+# Ajusta al compute que tengas creado en AML:
+compute: azureml:rllibgpu
+
+# Opción A: usar imagen directa de Docker Hub
+#environment:
+#  image: docker.io/<usuario>/<tu_imagen>:<tag>
+
+# (Opción B: si ya registraste un environment, comenta lo de arriba y usa esto)
+environment: azureml:fqte-env@latest
+
+inputs:
+  episodes:
+    type: uri_folder
+    path: azureml://datastores/lunarlanderrllibepisodes/paths/
+    mode: ro_mount
+
+
+outputs:
+  model:
+    type: uri_folder
+    mode: upload
