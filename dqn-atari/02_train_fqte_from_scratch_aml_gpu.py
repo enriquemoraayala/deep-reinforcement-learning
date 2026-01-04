@@ -163,7 +163,7 @@ def train_nn(
     policy_action,
     save_dir: Path,
     resume_training: bool = True,
-    num_epochs: int = 75,
+    num_epochs: int = 200,
     batch_size: int = 2048,
     target_update_interval: int = 5,
     save_every: int = 5,
@@ -509,10 +509,10 @@ def parse_args() -> argparse.Namespace:
     # Training limits / hyperparams
     p.add_argument("--beh_train_limit", type=int, default=10000, help="Max transitions to load for training (passed to load_json_to_df_max).")
     p.add_argument("--beh_test_limit", type=int, default=2000, help="Max transitions to load for test (passed to load_json_to_df_max).")
-    p.add_argument("--num_epochs", type=int, default=75)
+    p.add_argument("--num_epochs", type=int, default=200)
     p.add_argument("--batch_size", type=int, default=2048)
-    p.add_argument("--target_update_interval", type=int, default=5)
-    p.add_argument("--save_every", type=int, default=5)
+    p.add_argument("--target_update_interval", type=int, default=10)
+    p.add_argument("--save_every", type=int, default=15)
     p.add_argument("--lr", type=float, default=5e-4)
     p.add_argument("--gamma", type=float, default=0.99)
 
