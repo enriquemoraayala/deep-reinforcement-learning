@@ -2,7 +2,7 @@ $schema: https://azuremlschemas.azureedge.net/latest/commandJob.schema.json
 type: command
 
 display_name: fqte-train-lunarlander
-experiment_name: fqte
+experiment_name: fqte_gpu
 
 code: .
 command: >-
@@ -14,10 +14,10 @@ command: >-
   --target_eval_rel 130820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0
   --eval_checkpoint_dir ${{inputs.episodes}}/checkpoints/130820251600
   --output_dir ${{outputs.model}}
-  --num_epochs 75
+  --num_epochs 200
   --batch_size 2048
-  --target_update_interval 5
-  --save_every 5
+  --target_update_interval 10
+  --save_every 15
   --lr 5e-4
   --gamma 0.99
   --resume_training

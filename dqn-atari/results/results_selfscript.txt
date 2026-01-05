@@ -24,6 +24,28 @@ Weighted IS (vect logp): 47.116515400342564
 
 ######################################################################
 
+DM best model: [FQE] Epoch 100/200 avg_loss=11.635035
+
+[FQE] Epoch 100/200 avg_loss=11.635035
+[FQE] Saved checkpoint: /mnt/azureml/cr/j/b93fefc5cf43477e9b0b767153a92ff3/cap/data-capability/wd/model/fqe_checkpoints/fqe_epoch_105.pt
+[FQE] Epoch 110/200 avg_loss=11.928526
+[FQE] Saved checkpoint: /mnt/azureml/cr/j/b93fefc5cf43477e9b0b767153a92ff3/cap/data-capability/wd/model/fqe_checkpoints/fqe_epoch_120.pt
+[FQE] Epoch 120/200 avg_loss=12.378288
+[FQE] Epoch 130/200 avg_loss=13.029963
+[FQE] Saved checkpoint: /mnt/azureml/cr/j/b93fefc5cf43477e9b0b767153a92ff3/cap/data-capability/wd/model/fqe_checkpoints/fqe_epoch_135.pt
+[FQE] Epoch 140/200 avg_loss=13.995070
+[FQE] Saved checkpoint: /mnt/azureml/cr/j/b93fefc5cf43477e9b0b767153a92ff3/cap/data-capability/wd/model/fqe_checkpoints/fqe_epoch_150.pt
+[FQE] Epoch 150/200 avg_loss=15.320837
+[FQE] Epoch 160/200 avg_loss=16.643313
+[FQE] Saved checkpoint: /mnt/azureml/cr/j/b93fefc5cf43477e9b0b767153a92ff3/cap/data-capability/wd/model/fqe_checkpoints/fqe_epoch_165.pt
+[FQE] Epoch 170/200 avg_loss=18.796383
+[FQE] Saved checkpoint: /mnt/azureml/cr/j/b93fefc5cf43477e9b0b767153a92ff3/cap/data-capability/wd/model/fqe_checkpoints/fqe_epoch_180.pt
+[FQE] Epoch 180/200 avg_loss=20.816773
+[FQE] Epoch 190/200 avg_loss=22.679195
+[FQE] Saved checkpoint: /mnt/azureml/cr/j/b93fefc5cf43477e9b0b767153a92ff3/cap/data-capability/wd/model/fqe_checkpoints/fqe_epoch_195.pt
+[FQE] Saved checkpoint: /mnt/azureml/cr/j/b93fefc5cf43477e9b0b767153a92ff3/cap/data-capability/wd/model/fqe_checkpoints/fqe_epoch_200.pt
+[FQE] Epoch 200/200 avg_loss=25.609360
+
 
 
 

@@ -196,6 +196,9 @@ def train_nn(
 
     q_net = QNetwork(state_dim, num_actions).to(device)
     target_net = QNetwork(state_dim, num_actions).to(device)
+    print("[FQE] q_net param device:", next(q_net.parameters()).device)
+    print("[FQE] target_net param device:", next(target_net.parameters()).device)
+
     target_net.load_state_dict(q_net.state_dict())
     target_net.eval()
 
