@@ -47,6 +47,70 @@ DM best model: [FQE] Epoch 100/200 avg_loss=11.635035
 [FQE] Epoch 200/200 avg_loss=25.609360
 
 
+########################################################################################3
+03.02_oppe_from_scratch_dm_2.py
+
+Checkpoint loaded
+loaded JSON: /opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0
+Transformed 1000 episodes with a total of 260658 steps
+loaded JSON: /opt/ml/code/episodes/130820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0
+Transformed 1000 episodes with a total of 212478 steps
+Avg_Expecting_Return (BEH_POLICY) Value - RLLIB Generated episodes:  46.783 - STD  15.784
+Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes:  76.929 - STD  16.689
+loaded JSON: /opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0
+Transformed 2000 episodes with a total of 521601 steps
+Extrayendo estados iniciales s0 de cada episodio...
+Número de episodios: 2000
+Cargando modelo FQE...
+Se cargó el checkpoint desde ./20260104_fqe_checkpoints, entrenadas 105 épocas con Avg. Loss 12.047094437613415
+Calculando estimador DM (política estocástica)...
+[DM estocástico] J_hat ≈ -2080.4624
+Calculando estimador DM (política greedy w.r.t Q)...
+[DM greedy] J_hat ≈ -7.1618
 
 
 
+---->
+
+checkpoint = torch.load(FQE_CHECKPOINT_PATH + '/fqe_epoch_80.pt')
+Se cargó el checkpoint desde ./fqe_checkpoints, entrenadas 80 épocas con Avg. Loss 2.8818980979652298
+Calculando estimador DM (política estocástica)...
+[DM estocástico] J_hat ≈ -3613.9351
+Calculando estimador DM (política greedy w.r.t Q)...
+[DM greedy] J_hat ≈ -5.2253
+
+
+#############################################################################################################
+03.02_oppe_from_scratch_dm.py
+
+loaded JSON: /opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0
+Transformed 1000 episodes with a total of 260658 steps
+loaded JSON: /opt/ml/code/episodes/130820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0
+Transformed 1000 episodes with a total of 212478 steps
+Avg_Expecting_Return (BEH_POLICY) Value - RLLIB Generated episodes:  46.783 - STD  15.784
+Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes:  76.929 - STD  16.689
+loaded JSON: /opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0
+Transformed 2000 episodes with a total of 521601 steps
+
+Se cargó el checkpoint desde ./fqe_checkpoints, entrenadas 80 épocas con Avg. Loss 2.8818980979652298
+
+Valor esperado estimado DM de la política PPO (retorno promedio inicial): -3.118 - STD: 18.660
+Valor esperado estimado DR de la política PPO (retorno promedio inicial): 47.117 - STD: 16.082
+
+##################################################################################################################
+
+03.03_oppe_rllib_selfcontent_script.py
+
+loaded JSON: /opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0
+Transformed 1000 episodes with a total of 260658 steps
+loaded JSON: /opt/ml/code/episodes/130820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0
+Transformed 1000 episodes with a total of 212478 steps
+Avg_Expecting_Return (BEH_POLICY) Value - RLLIB Generated episodes:  46.783 - STD  15.784
+Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes:  76.929 - STD  16.689
+2026-01-08 08:56:43,769	WARNING json_reader.py:261 -- Treating input directory as glob patterns: ['/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0/*.json', '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0/*.zip']
+Ordinary Importance Sampling (IS RLLIB) Value: 1.9778902337205626
+Direct Method (DM) with RLLIB V_ expected estimation -10.975613594055176 and STD 6.487840134380448
+Double Roboust (DR) with RLLIB V_ expected estimation -8.622335703923106 and STD 16.12636908490694
+
+
+##################################################################################################################

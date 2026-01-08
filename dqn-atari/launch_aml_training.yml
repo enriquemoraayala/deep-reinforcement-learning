@@ -14,10 +14,10 @@ command: >-
   --target_eval_rel 130820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0
   --eval_checkpoint_dir ${{inputs.episodes}}/checkpoints/130820251600
   --output_dir ${{outputs.model}}
-  --num_epochs 200
-  --batch_size 2048
+  --num_epochs 500
+  --batch_size 4096
   --target_update_interval 10
-  --save_every 15
+  --save_every 30
   --lr 5e-4
   --gamma 0.99
   --resume_training
@@ -30,7 +30,7 @@ compute: azureml:rllibgpu
 #  image: docker.io/<usuario>/<tu_imagen>:<tag>
 
 # (Opción B: si ya registraste un environment, comenta lo de arriba y usa esto)
-environment: azureml:fqte-env@latest
+environment: azureml:fqte-env-gpu@latest
 
 inputs:
   episodes:

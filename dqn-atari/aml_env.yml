@@ -1,4 +1,4 @@
 $schema: https://azuremlschemas.azureedge.net/latest/environment.schema.json
-name: fqte-env
-image: docker.io/enriquemoraayala/rllib-211-gymnasium-10:latest
+name: fqte-env-gpu
+image: docker.io/enriquemoraayala/rllib-211-gymnasium-10-gpu:latest
 description: Entrenamiento FQTE desde imagen de Docker Hub - RLLIB 2.11 Gymnasium 1.0

@@ -120,9 +120,8 @@ def oppe():
     
     BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/120820251600/011125_01_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_exp_0'
     BEH_EPISODES_JSON_TEST = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0'
-    BEH_EPISODES_JSON = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
-    EVAL_EPISODES_JSON = '/opt/ml/code/episodes/130820251600/140825_generated_rllib_ppo_rllib_seed_0000_1000eps_200steps_exp_0'
-    # EVAL_EPISODES_JSON = '/opt/ml/code/episodes/300720251000/100825_generated_rllib_ppo_rllib_seed_0000_50eps_200steps_exp_0'
+    BEH_EPISODES_JSON_VAL = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
+    EVAL_EPISODES_JSON = '/opt/ml/code/episodes/130820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
     beh_agent = load_checkpoint(BEH_CHECKPOINT_PATH)
     eval_agent = load_checkpoint(EVAL_CHECKPOINT_PATH)
     #  if generate_eps == 1:
@@ -132,18 +131,24 @@ def oppe():
     # ---------------------------------------------------------------------------#
     # LEYENDO DATOS
     # --------------------------------------------------------------------------- #
-    reader_beh = JsonReader(BEH_EPISODES_JSON)
-    reader_beh_train = JsonReader(BEH_EPISODES_JSON_TRAIN)
-    reader_beh_test = JsonReader(BEH_EPISODES_JSON_TEST)
+    reader_beh = JsonReader(BEH_EPISODES_JSON_TEST)
+    reader_beh_val = JsonReader(BEH_EPISODES_JSON_VAL)
     reader_target = JsonReader(EVAL_EPISODES_JSON)
-    beh_eps_df = load_json_to_df_max(reader_beh, 1000)
-    beh_test_df = load_json_to_df_max(reader_beh_test, 2000)
-    target_eps_df = load_json_to_df_max(reader_target, 1000)
-    beh_expected_return, beh_return_stdev = calculate_policy_expected_value(beh_eps_df, 0.99)
+    beh_eps_df_val, eps, steps = load_json_to_df_max(reader_beh_val, 1000)
+    print(f'loaded JSON: {BEH_EPISODES_JSON_VAL}')
+    print(f"Transformed {eps} episodes with a total of {steps} steps")
+    target_eps_df, eps, steps = load_json_to_df_max(reader_target, 1000)
+    print(f'loaded JSON: {EVAL_EPISODES_JSON}')
+    print(f"Transformed {eps} episodes with a total of {steps} steps")
+    beh_expected_return, beh_return_stdev = calculate_policy_expected_value(beh_eps_df_val, 0.99)
     target_expected_return, target_return_stdev = calculate_policy_expected_value(target_eps_df, 0.99)
     print(f"Avg_Expecting_Return (BEH_POLICY) Value - RLLIB Generated episodes: {beh_expected_return: .3f} - STD {beh_return_stdev: .3f}")
     print(f"Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes: {target_expected_return: .3f} - STD {target_return_stdev: .3f}")
 
+    beh_eps_df, eps, steps = load_json_to_df_max(reader_beh, 2000)
+    print(f'loaded JSON: {BEH_EPISODES_JSON_TEST}')
+    print(f"Transformed {eps} episodes with a total of {steps} steps")
+    print("Extrayendo estados iniciales s0 de cada episodio...")
 
     # --------------------------------------------------------------------------- #
     # DM FROM SCRATCH CON FQTE MODEL YA ENTRENADO
@@ -157,11 +162,11 @@ def oppe():
         avg_loss = checkpoint["avg_loss"]
         print(f"Se cargó el checkpoint desde {FQE_CHECKPOINT_PATH}, entrenadas {start_epoch} épocas con Avg. Loss {avg_loss}")
 
-    qsa_values, dm_estimated_value, dm_std = evaluate_policy_dm(q_net, beh_test_df, eval_agent)
+    qsa_values, dm_estimated_value, dm_std = evaluate_policy_dm(q_net, beh_eps_df, eval_agent)
     print(f"\nValor esperado estimado DM de la política PPO (retorno promedio inicial): {dm_estimated_value:.3f} - STD: {dm_std:.3f}")
 
 
-    V_dr, dr_estimated_value, dr_std = doubly_robust(beh_test_df, eval_agent, q_net)
+    V_dr, dr_estimated_value, dr_std = doubly_robust(beh_eps_df, eval_agent, q_net)
     print(f"\nValor esperado estimado DR de la política PPO (retorno promedio inicial): {dr_estimated_value:.3f} - STD: {dr_std:.3f}")
 
    
