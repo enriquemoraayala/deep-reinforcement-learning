@@ -153,7 +153,7 @@ def oppe():
 
     BEH_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/120820251600"
     EVAL_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/130820251600"
-    FQE_CHECKPOINT_PATH = "./fqe_checkpoints"
+    FQE_CHECKPOINT_PATH = "./20260104_fqe_checkpoints"
     
     BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/120820251600/011125_01_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_exp_0'
     BEH_EPISODES_JSON_TEST = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0'

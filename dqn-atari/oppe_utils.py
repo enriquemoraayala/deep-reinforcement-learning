@@ -178,7 +178,7 @@ class QNetwork(nn.Module):
 
 def load_fqte(FQE_CHECKPOINT_PATH, device):
     if os.path.exists(FQE_CHECKPOINT_PATH):
-        checkpoint = torch.load(FQE_CHECKPOINT_PATH + '/fqe_epoch_80.pt')
+        checkpoint = torch.load(FQE_CHECKPOINT_PATH + '/fqe_epoch_500.pt', map_location=torch.device('cpu'))
         q_net = QNetwork(8, 4)
         q_net.load_state_dict(checkpoint["model_state_dict"])
         q_net.to(device)

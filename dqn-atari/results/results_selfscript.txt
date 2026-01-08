@@ -80,6 +80,14 @@ Calculando estimador DM (política greedy w.r.t Q)...
 [DM greedy] J_hat ≈ -5.2253
 
 
+checkpoint = torch.load(FQE_CHECKPOINT_PATH + '/fqe_epoch_500.pt', map_location=torch.device('cpu'))
+Se cargó el checkpoint desde ./20260104_fqe_checkpoints, entrenadas 500 épocas con Avg. Loss 152.7013323318266
+Calculando estimador DM (política estocástica)...
+[DM estocástico] J_hat ≈ 20250.1094
+Calculando estimador DM (política greedy w.r.t Q)...
+[DM greedy] J_hat ≈ 39.8202
+
+
 #############################################################################################################
 03.02_oppe_from_scratch_dm.py
 
