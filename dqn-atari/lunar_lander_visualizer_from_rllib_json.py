@@ -5,11 +5,12 @@ import pandas as pd
 import torch
 import argparse
 import gymnasium as gym
+from tqdm import trange
 
 import imageio
 from PIL import Image, ImageDraw, ImageFont
 from ray.rllib.offline.json_reader import JsonReader
-from oppe_utils import load_json_to_df_max
+from oppe_utils import load_json_to_df_max, reset_env_with_seed
 
 
 def save_frames_as_gif(frames, path_filename):
@@ -26,19 +27,12 @@ def TextOnImg(img, score):
     return np.array(img)
 
 
-def gym2gif(env, eps, e, seed, filename="gym_animation", max_steps=0):
+def gym2gif(env, eps, e, state, filename="gym_animation", max_steps=0):
     frames = []
     scores = []
     steps = []
-
     ep = eps[eps['ep'] == e]
     actions = ep['action']
-    if seed == '0000':
-        state = env.reset()
-    else:    
-        state = env.reset(seed=seed)
-    # after reset, state is diferent from env.step()
-    state = state[0]
     score = 0
     for step in ep['step']:
         frame = env.render()
@@ -54,14 +48,19 @@ def gym2gif(env, eps, e, seed, filename="gym_animation", max_steps=0):
     return scores, steps
 
 
+
+
 def main(args):
     env = gym.make("LunarLander-v3", render_mode="rgb_array")
     reader_target = JsonReader(args.json_file)
     eps_df, eps, steps = load_json_to_df_max(reader_target, int(args.num_eps))
     print(f"Transformed {eps} episodes with a total of {steps} steps")
     # eps.to_csv(args.json_file + '.csv')
+    i = 0
     for e in eps_df.ep.unique():
-        gym2gif(env, eps_df, e, int(args.env_seed), filename=args.output_file, max_steps=0)
+        initial_state = reset_env_with_seed(env, i, args.env_seed)
+        gym2gif(env, eps_df, e, initial_state, filename=args.output_file, max_steps=0)
+        i += 1
 
 
 
@@ -70,11 +69,11 @@ if __name__ == '__main__':
         description="Visualize RLLIB Json file with episodes")
     parser.add_argument("--json_file", type=str,
                         help="Path to json file with the episodes.",
-                        default="/opt/ml/code/episodes/130820251600/080226_generated_rllib_ppo_rllib_seed_11111_1eps_300steps_exp_0")
+                        default="/opt/ml/code/episodes/130820251600/140226_generated_rllib_ppo_rllib_seed_rotate_5eps_300steps_exp_0")
     parser.add_argument("--output_file",
-                        default="/opt/ml/code/output_gifs/130820251600/080226_generated_rllib_ppo_rllib_seed_11111_1eps_300steps_exp_0")
-    parser.add_argument("--num_eps", default="1")
-    parser.add_argument("--env_seed", default="11111")
+                        default="/opt/ml/code/output_gifs/130820251600/140226_generated_rllib_ppo_rllib_seed_rotate_5eps_300steps_exp_0")
+    parser.add_argument("--num_eps", default="5")
+    parser.add_argument("--env_seed", default="rotate")
     args = parser.parse_args()
     print(f"Running with following CLI options: {args}")
     main(args)

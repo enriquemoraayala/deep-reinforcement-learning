@@ -25,6 +25,7 @@ from gymnasium.wrappers import NormalizeObservation
 from ray.rllib.evaluation.sample_batch_builder import SampleBatchBuilder
 from ray.rllib.offline.json_writer import JsonWriter
 from ray.rllib.algorithms.algorithm import Algorithm
+from oppe_utils import reset_env_with_seed
 
 def TextOnImg(img, score, x=20, y=20, text='Score'):
     img = Image.fromarray(img)
@@ -92,13 +93,10 @@ def generate_episodes(args, env, agent, exp):
     )
     scores = []
     steps = []
+    #I want to have under control the seeds of the environment, so I can have different episodes with different seeds, but also be able to reproduce them. So I will use a list of seeds and rotate them every episode
+
     for i in trange(int(args.total_episodes)):
-        if args.env_seed == '0000':
-            state = env.reset()
-        else:
-            state = env.reset(seed=int(args.env_seed))
-        # after reset, state is diferent from env.step() - gymnasium
-        state = state[0]
+        state = reset_env_with_seed(env, i, args.env_seed)
         score = 0
         prev_action = 0
         prev_reward = 0
@@ -196,9 +194,9 @@ if __name__ == '__main__':
     parser.add_argument("--agent_type", help = "dqn/random/ppo_rllib", default="ppo_rllib")
     parser.add_argument("--render", help = "yes/no", default="no")
     parser.add_argument("--max_ep", help = "0 is max_ep", default="300")
-    parser.add_argument("--total_episodes", help = "", default="1")
+    parser.add_argument("--total_episodes", help = "", default="5")
     parser.add_argument("--total_datasets_to_generate", help = "", default="1")
-    parser.add_argument("--env_seed", help = "0000 -> no seed", default="11111")
+    parser.add_argument("--env_seed", help = "0000 -> no seed, rotate -> every reset a different seed", default="rotate")
     parser.add_argument("--debug", help = "yes=1/no=0", default="0")
     parser.add_argument("--output", help = "path", 
                         # default="/home/enrique/repositories/deep-reinforcement-learning/dqn-atari/episodes/ppo_rllib_130920241043"
@@ -214,7 +212,7 @@ if __name__ == '__main__':
     parser.add_argument("--output_episodes", type=str,
                         #default='/home/enrique/repositories/deep-reinforcement-learning/dqn-atari/episodes/130920241043'
                         # default='/opt/ml/code/episodes/120820251600'
-                        default='/opt/ml/code/checkpoints/130820251600'
+                        default='/opt/ml/code/episodes/130820251600'
                         )
     args = parser.parse_args()
 

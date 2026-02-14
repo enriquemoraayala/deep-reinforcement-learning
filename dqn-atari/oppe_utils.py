@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from ray.rllib.algorithms import Algorithm
 from statistics import mean, stdev
+from tqdm import trange
 
 def load_checkpoint(checkpoint_path):
         algo = Algorithm.from_checkpoint(checkpoint_path)
@@ -278,3 +279,18 @@ def add_target_logprobs_from_rllib(df: pd.DataFrame,
     df["target_logprob_action"] = logps_all
 
     return df
+
+
+
+#rotating seeds for env reset
+def reset_env_with_seed(env, eps_num, env_seed):
+    seeds = [11111, 22222, 33333, 44444, 55555, 66666, 77777, 88888, 99999]
+    if env_seed == '0000':
+        state = env.reset()
+    elif env_seed == 'rotate':
+        seed = seeds[eps_num % len(seeds)]
+        state = env.reset(seed=seed)
+    else:
+        state = env.reset(seed=int(env_seed))
+    # after reset, state is diferent from env.step() - gymnasium
+    return state[0]
