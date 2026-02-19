@@ -69,10 +69,10 @@ if __name__ == '__main__':
         description="Visualize RLLIB Json file with episodes")
     parser.add_argument("--json_file", type=str,
                         help="Path to json file with the episodes.",
-                        default="/opt/ml/code/episodes/130820251600/140226_generated_rllib_ppo_rllib_seed_rotate_5eps_300steps_exp_0")
+                        default="/opt/ml/code/episodes/130820251600/190226_generated_rllib_ppo_rllib_seed_rotate_15eps_300steps_exp_0")
     parser.add_argument("--output_file",
-                        default="/opt/ml/code/output_gifs/130820251600/140226_generated_rllib_ppo_rllib_seed_rotate_5eps_300steps_exp_0")
-    parser.add_argument("--num_eps", default="5")
+                        default="/opt/ml/code/output_gifs/130820251600/190226_generated_rllib_ppo_rllib_seed_rotate_15eps_300steps_exp_0")
+    parser.add_argument("--num_eps", default="15")
     parser.add_argument("--env_seed", default="rotate")
     args = parser.parse_args()
     print(f"Running with following CLI options: {args}")

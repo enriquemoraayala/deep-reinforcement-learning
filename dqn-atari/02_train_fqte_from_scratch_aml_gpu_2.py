@@ -164,13 +164,16 @@ def train_nn(
     save_dir: Path,
     resume_training: bool = True,
     num_epochs: int = 200,
-    batch_size: int = 2048,
-    target_update_interval: int = 5,
-    save_every: int = 5,
+    batch_size: int = 4096,
+    target_update_interval: int = 10,
+    save_every: int = 20,
     lr: float = 5e-4,
     gamma: float = 0.99,
     device: torch.device = torch.device("cpu"),
     use_amp: bool = False,
+    val_split: float = 0.2,
+    early_stopping_patience: int = 30,
+    min_delta: float = 0.8,
 ) -> Tuple[QNetwork, Dict[str, Any]]:
     """
     Trains an FQE-style Q network.
@@ -190,9 +193,25 @@ def train_nn(
 
     state_dim = _infer_state_dim(states)
     num_actions = int(actions.max().item() + 1)
+    n_samples = states.shape[0]
+
+    if n_samples < 2:
+        raise ValueError(f"[FQE] Need at least 2 samples for split, got {n_samples}.")
+
+    n_val = max(1, int(n_samples * val_split))
+    n_train = n_samples - n_val
+    if n_train < 1:
+        n_train = 1
+        n_val = n_samples - 1
 
     print(f"[FQE] state_dim={state_dim} num_actions={num_actions}")
     print(f"[FQE] dataset transitions={states.shape[0]} batch_size={batch_size} num_epochs={num_epochs}")
+    print(f"[FQE] split train={n_train} val={n_val} (val_split={val_split:.2f})")
+
+    # Fixed split for stable early-stopping metric across epochs.
+    perm = torch.randperm(n_samples)
+    train_idx = perm[:n_train]
+    val_idx = perm[n_train:]
 
     q_net = QNetwork(state_dim, num_actions).to(device)
     target_net = QNetwork(state_dim, num_actions).to(device)
@@ -227,13 +246,17 @@ def train_nn(
     else:
         print("[FQE] resume_training=False, training from scratch.")
 
+    best_val_loss = float("inf")
+    patience_counter = 0
+
     # Training loop
     for epoch in range(start_epoch, num_epochs):
-        indices = torch.randperm(states.shape[0])
+        train_shuffle = train_idx[torch.randperm(train_idx.shape[0])]
         batch_losses: List[float] = []
 
-        for i in range(0, states.shape[0], batch_size):
-            batch_idx = indices[i : i + batch_size]
+        q_net.train()
+        for i in range(0, train_shuffle.shape[0], batch_size):
+            batch_idx = train_shuffle[i : i + batch_size]
 
             # Move batch to device
             batch_states = states[batch_idx].to(device, non_blocking=True)
@@ -297,26 +320,61 @@ def train_nn(
             torch.save(checkpoint, checkpoint_path)
             print(f"[FQE] Saved checkpoint: {checkpoint_path}")
 
-        if (epoch + 1) % target_update_interval == 0 or epoch == start_epoch:
-            avg_loss = float(np.mean(batch_losses)) if batch_losses else float("nan")
-            print(f"[FQE] Epoch {epoch+1}/{num_epochs} avg_loss={avg_loss:.6f}")
-
-        # --- VALIDACIÓN (Agregar esto al final del epoch) ---
         q_net.eval()
-        val_losses = []
+        val_losses: List[float] = []
         with torch.no_grad():
-             # Usar un subconjunto de validación (puedes pasar beh_val_df a train_nn)
-             # O simplemente usar el error de entrenamiento como proxy si no quieres pasar más datos
-             pass 
-        
-        # Guardar el mejor modelo basado en loss
-        current_loss = np.mean(batch_losses)
-        if current_loss < best_val_loss:
-            best_val_loss = current_loss
+            for j in range(0, val_idx.shape[0], batch_size):
+                v_idx = val_idx[j : j + batch_size]
+                v_states = states[v_idx].to(device, non_blocking=True)
+                v_actions = actions[v_idx].to(device, non_blocking=True)
+                v_rewards = rewards[v_idx].to(device, non_blocking=True)
+                v_next_states = next_states[v_idx].to(device, non_blocking=True)
+                v_dones = dones[v_idx].to(device, non_blocking=True)
+
+                with autocast(enabled=(use_amp and device.type == "cuda")):
+                    v_q_values = q_net(v_states).squeeze(1)
+                    v_q_sa = v_q_values.gather(1, v_actions.view(-1, 1)).squeeze(1)
+
+                next_actions_cpu = _compute_actions_batch(policy_action, v_next_states)
+                next_actions = next_actions_cpu.to(device, non_blocking=True)
+                v_q_next = target_net(v_next_states).squeeze(1)
+                v_q_next_sa = v_q_next.gather(1, next_actions.view(-1, 1)).squeeze(1)
+                v_q_next_sa = v_q_next_sa * (1 - v_dones)
+                v_targets = v_rewards + gamma * v_q_next_sa
+
+                with autocast(enabled=(use_amp and device.type == "cuda")):
+                    v_loss = criterion(v_q_sa, v_targets)
+
+                val_losses.append(float(v_loss.item()))
+
+        avg_loss = float(np.mean(batch_losses)) if batch_losses else float("nan")
+        avg_val_loss = float(np.mean(val_losses)) if val_losses else float("nan")
+        print(
+            f"[FQE] Epoch {epoch+1}/{num_epochs} train_loss={avg_loss:.6f} "
+            f"val_loss={avg_val_loss:.6f} patience={patience_counter}/{early_stopping_patience}"
+        )
+
+        # Save best model by validation loss
+        if avg_val_loss + min_delta < best_val_loss:
+            best_val_loss = avg_val_loss
             patience_counter = 0
-            torch.save(q_net.state_dict(), save_dir / "best_model.pt") # Guardar aparte el mejor
+            torch.save(_state_dict_to_cpu(q_net.state_dict()), save_dir / "best_model.pt")
+            print(f"[FQE] New best model (val_loss={best_val_loss:.6f})")
         else:
             patience_counter += 1
+            if patience_counter >= early_stopping_patience:
+                print(
+                    f"[FQE] Early stopping at epoch {epoch+1}. "
+                    f"Best val_loss={best_val_loss:.6f}"
+                )
+                break
+
+    best_model_path = save_dir / "best_model.pt"
+    if best_model_path.exists():
+        best_sd = torch.load(best_model_path, map_location="cpu")
+        q_net.load_state_dict(best_sd)
+        q_net.to(device)
+        print(f"[FQE] Loaded best model from: {best_model_path}")
 
     meta = {
         "state_dim": state_dim,
@@ -329,6 +387,12 @@ def train_nn(
         "save_every": save_every,
         "device": str(device),
         "amp": bool(use_amp and device.type == "cuda"),
+        "val_split": val_split,
+        "train_samples": int(n_train),
+        "val_samples": int(n_val),
+        "best_val_loss": float(best_val_loss),
+        "early_stopping_patience": early_stopping_patience,
+        "min_delta": min_delta,
     }
     return q_net, meta
 

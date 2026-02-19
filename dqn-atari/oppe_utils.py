@@ -284,7 +284,7 @@ def add_target_logprobs_from_rllib(df: pd.DataFrame,
 
 #rotating seeds for env reset
 def reset_env_with_seed(env, eps_num, env_seed):
-    seeds = [11111, 22222, 33333, 44444, 55555, 66666, 77777, 88888, 99999]
+    seeds = [11111, 22222, 33333, 44444, 55555, 66666, 77777, 88888, 99999, 12345, 54321, 13579, 24680, 11223, 44556, 77889]
     if env_seed == '0000':
         state = env.reset()
     elif env_seed == 'rotate':

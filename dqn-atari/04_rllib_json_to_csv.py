@@ -16,10 +16,10 @@ def json_to_csv(rllib_json, csv_path, num_eps):
 
 if __name__ == '__main__':
 
-    BEH_EPISODES_JSON_VAL = '/opt/ml/code/episodes/120820251600/140226_generated_rllib_ppo_rllib_seed_rotate_5eps_300steps_exp_0'
-    EVAL_EPISODES_JSON = '/opt/ml/code/episodes/130820251600/140226_generated_rllib_ppo_rllib_seed_rotate_5eps_300steps_exp_0'
+    BEH_EPISODES_JSON_VAL = '/opt/ml/code/episodes/120820251600/190226_generated_rllib_ppo_rllib_seed_rotate_15eps_300steps_exp_0'
+    EVAL_EPISODES_JSON = '/opt/ml/code/episodes/130820251600/190226_generated_rllib_ppo_rllib_seed_rotate_15eps_300steps_exp_0'
     BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/120820251600/011125_01_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_exp_0'
-    JSON_TO_CONVERT =  EVAL_EPISODES_JSON
-    CSV_PATH =  '/opt/ml/code/episodes/130820251600/140226_generated_rllib_ppo_rllib_seed_rotate_5eps_300steps_exp_0.csv'
-    NUM_EPS = 5
+    JSON_TO_CONVERT =  BEH_EPISODES_JSON_VAL
+    CSV_PATH =  '/opt/ml/code/episodes/120820251600/190226_generated_rllib_ppo_rllib_seed_rotate_15eps_300steps_exp_0.csv'
+    NUM_EPS = 15
     json_to_csv(JSON_TO_CONVERT, CSV_PATH, NUM_EPS)

@@ -1,3 +1,4 @@
+az login
 az configure --defaults group="nestle-innovation-azureml-lab" workspace="mlw-innovation-lab"
 az extension add -n ml
 az ml environment create -f aml_env.yml 

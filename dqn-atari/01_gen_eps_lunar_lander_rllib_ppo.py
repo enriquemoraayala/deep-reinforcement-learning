@@ -194,7 +194,7 @@ if __name__ == '__main__':
     parser.add_argument("--agent_type", help = "dqn/random/ppo_rllib", default="ppo_rllib")
     parser.add_argument("--render", help = "yes/no", default="no")
     parser.add_argument("--max_ep", help = "0 is max_ep", default="300")
-    parser.add_argument("--total_episodes", help = "", default="5")
+    parser.add_argument("--total_episodes", help = "", default="15")
     parser.add_argument("--total_datasets_to_generate", help = "", default="1")
     parser.add_argument("--env_seed", help = "0000 -> no seed, rotate -> every reset a different seed", default="rotate")
     parser.add_argument("--debug", help = "yes=1/no=0", default="0")

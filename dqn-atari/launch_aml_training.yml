@@ -6,7 +6,7 @@ experiment_name: fqte_gpu
 
 code: .
 command: >-
-  python 02_train_fqte_from_scratch_aml_gpu.py
+  python 02_train_fqte_from_scratch_aml_gpu_2.py
   --episodes_root ${{inputs.episodes}}
   --beh_train_rel 120820251600/011125_01_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_exp_0
   --beh_test_rel  120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0
@@ -14,7 +14,7 @@ command: >-
   --target_eval_rel 130820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0
   --eval_checkpoint_dir ${{inputs.episodes}}/checkpoints/130820251600
   --output_dir ${{outputs.model}}
-  --num_epochs 500
+  --num_epochs 200
   --batch_size 4096
   --target_update_interval 10
   --save_every 30
