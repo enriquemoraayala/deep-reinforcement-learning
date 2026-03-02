@@ -109,14 +109,16 @@ def _compute_actions_batch(policy, obs_batch: torch.Tensor) -> torch.Tensor:
 
 # == Q-network for FQE ==
 class QNetwork(nn.Module):
-    def __init__(self, state_dim: int, num_actions: int, hidden_size: int = 256):
+    def __init__(self, state_dim: int, num_actions: int, hidden_size: int = 256, final_hidden_size: int = 128 ):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(state_dim, hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
-            nn.Linear(hidden_size, num_actions),
+            nn.Linear(hidden_size, final_hidden_size),
+            nn.ReLU(),
+            nn.Linear(final_hidden_size, num_actions),
         )
 
     def forward(self, state: torch.Tensor) -> torch.Tensor:
@@ -163,7 +165,7 @@ def train_nn(
     policy_action,
     save_dir: Path,
     resume_training: bool = True,
-    num_epochs: int = 200,
+    num_epochs: int = 500,
     batch_size: int = 4096,
     target_update_interval: int = 10,
     save_every: int = 20,
@@ -172,8 +174,8 @@ def train_nn(
     device: torch.device = torch.device("cpu"),
     use_amp: bool = False,
     val_split: float = 0.2,
-    early_stopping_patience: int = 30,
-    min_delta: float = 0.8,
+    early_stopping_patience: int = 100,
+    min_delta: float = 1,
 ) -> Tuple[QNetwork, Dict[str, Any]]:
     """
     Trains an FQE-style Q network.
