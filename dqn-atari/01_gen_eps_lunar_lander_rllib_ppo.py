@@ -158,7 +158,10 @@ def render_agent(args):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     max_eps = int(args.max_ep)
     if max_eps > 0:
-        env = gym.make("LunarLander-v3", render_mode="rgb_array", max_episode_steps=int(args.max_ep))
+        if args.enable_wind == 'True':
+            env = gym.make("LunarLander-v3", render_mode="rgb_array", max_episode_steps=int(args.max_ep), enable_wind=True)
+        else:
+            env = gym.make("LunarLander-v3", render_mode="rgb_array", max_episode_steps=int(args.max_ep))
     else:
         env = gym.make("LunarLander-v3", render_mode="rgb_array")
     # env = NormalizeObservation(env)
@@ -191,28 +194,29 @@ if __name__ == '__main__':
     parser.add_argument("--env", type=str,
                         help="Path to configuration file of the envionment.",
                         default='LunarLander-v3')
+    parser.add_argument("--enable_wind", type=str, default='True', help="Whether to enable wind in the environment.")
     parser.add_argument("--agent_type", help = "dqn/random/ppo_rllib", default="ppo_rllib")
-    parser.add_argument("--render", help = "yes/no", default="no")
+    parser.add_argument("--render", help = "yes/no", default="yes")
     parser.add_argument("--max_ep", help = "0 is max_ep", default="300")
-    parser.add_argument("--total_episodes", help = "", default="15")
+    parser.add_argument("--total_episodes", help = "", default="5")
     parser.add_argument("--total_datasets_to_generate", help = "", default="1")
-    parser.add_argument("--env_seed", help = "0000 -> no seed, rotate -> every reset a different seed", default="rotate")
+    parser.add_argument("--env_seed", help = "0000 -> no seed, rotate -> every reset a different seed", default="0000")
     parser.add_argument("--debug", help = "yes=1/no=0", default="0")
     parser.add_argument("--output", help = "path", 
                         # default="/home/enrique/repositories/deep-reinforcement-learning/dqn-atari/episodes/ppo_rllib_130920241043"
-                        default="/opt/ml/code/output_gifs/130820251600_"
+                        default="/opt/ml/code/output_gifs/290320261800"
                         )
     parser.add_argument("--model_checkpoint_path", type=str,
                         help="Path to the model checkpoint",
                         # default='/home/azureuser/cloudfiles/code/Users/Enrique.Mora/deep-reinforcement-learning/dqn-atari/checkpoints/checkpoint_lunar_dqn_150424.pth'
                         # default='/home/enrique/repositories/deep-reinforcement-learning/dqn-atari/checkpoints/130920241043/ckpt_ppo_agent_torch_lunar_lander'
                         # default='/opt/ml/code/checkpoints/120820251600'
-                        default='/opt/ml/code/checkpoints/130820251600'
+                        default='/opt/ml/code/checkpoints/290320261800'
                         )
     parser.add_argument("--output_episodes", type=str,
                         #default='/home/enrique/repositories/deep-reinforcement-learning/dqn-atari/episodes/130920241043'
                         # default='/opt/ml/code/episodes/120820251600'
-                        default='/opt/ml/code/episodes/130820251600'
+                        default='/opt/ml/code/episodes/290320261800'
                         )
     args = parser.parse_args()
 
