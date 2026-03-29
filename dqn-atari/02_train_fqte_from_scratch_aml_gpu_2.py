@@ -174,7 +174,7 @@ def train_nn(
     device: torch.device = torch.device("cpu"),
     use_amp: bool = False,
     val_split: float = 0.2,
-    early_stopping_patience: int = 100,
+    early_stopping_patience: int = 300,
     min_delta: float = 1,
 ) -> Tuple[QNetwork, Dict[str, Any]]:
     """

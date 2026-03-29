@@ -3,14 +3,25 @@ import os
 from ray.rllib.algorithms.ppo import PPOConfig
 import ray
 import gymnasium as gym
+import debugpy
 
+debug = 1
+if debug == 1:
+    # Escucha en el puerto 5678 (puedes cambiarlo)
+    debugpy.listen(("0.0.0.0", 5678))
+    print("Esperando debugger de VS Code para conectar...")
+    debugpy.wait_for_client()
 
 def main(args):
     # In SageMaker, usually /opt/ml/model is the output directory
     output_dir = args.output_dir
     os.makedirs(output_dir, exist_ok=True)
     ray.init()
-    env = gym.make("LunarLander-v3") # v3 para gymnasium 1.0, v2 para gymnasium 0.28
+    if args.enable_wind == 'True':
+        print("Enabling wind in the environment.")
+        env = gym.make("LunarLander-v3", enable_wind=True) # v3 para gymnasium 1.0, v2 para gymnasium 0.28
+    else:
+        env = gym.make("LunarLander-v3") # v3 para gymnasium 1.0, v2 para gymnasium 0.28
     config = {'gamma': 0.999,
               'num_workers': 0,
               'monitor': True,
@@ -28,7 +39,7 @@ def main(args):
                 .build()
             )
     # algo = config.build()
-    for i in range(500):  
+    for i in range(int(args.num_epochs)):  
         result = trainer.train()
         print(f"Iteration {i}: reward_mean={result['episode_reward_mean']}")
         # Save checkpoint every 50 iterations
@@ -47,7 +58,9 @@ if __name__ == '__main__':
     parser.add_argument("--agent_type", type=str, default='ppo',
                         help="ppo/dqn")
     parser.add_argument("--numgpus", type=str, default='0')
-    parser.add_argument('--output_dir', type=str, default='/opt/ml/code/checkpoints/130820251600')
+    parser.add_argument("--num_epochs", type=int, default=2000)
+    parser.add_argument('--output_dir', type=str, default='/opt/ml/code/checkpoints/290320261800')
+    parser.add_argument("--enable_wind", type=str, default='True', help="Whether to enable wind in the environment.")
     args = parser.parse_args()
     print(f"Running with following CLI options: {args}")
     print("Ray Version %s" % ray.__version__)
