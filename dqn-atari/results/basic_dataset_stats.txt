@@ -126,3 +126,199 @@ Name: count, dtype: int64
 False    211557
 True        921
 Name: count, dtype: int64
+
+
+###################################################################################################
+GENERADOS CON ROTATE SEED PARA EVALUAR LUEGO
+310320260800/060426_generated_rllib_ppo_rllib_seed_rotate_15eps_300steps_Truewind_exp_0
+Transformed 15 episodes with a total of 4325 steps
+truncated   False  True 
+terminated              
+False        4310     14
+True            1      0
+📊 Estadísticas de los episodios:
+        num_episodes: 15.000
+          length_min: 125
+          length_max: 300
+          length_avg: 288.333
+          reward_min: 1.548
+          reward_max: 130.010
+          reward_avg: 38.720
+          reward_std: 32.769
+episodes_lt_300_steps: 1
+episodes_g_300_steps: 0
+episodes_e_300_steps: 14
+           truncated: truncated
+False    4311
+True       14
+Name: count, dtype: int64
+          terminated: terminated
+False    4324
+True        1
+Name: count, dtype: int64
+
+###########################################################################33
+GENERADOS CON ROTATE SEED PARA EVALUAR LUEGO
+/060420261500/060426_generated_rllib_ppo_rllib_seed_rotate_15eps_300steps_Truewind_exp_0
+
+Transformed 15 episodes with a total of 3873 steps
+truncated   False  True 
+terminated              
+False        3858      4
+True           11      0
+📊 Estadísticas de los episodios:
+        num_episodes: 15.000
+          length_min: 191
+          length_max: 300
+          length_avg: 258.200
+          reward_min: -244.386
+          reward_max: 291.311
+          reward_avg: 109.957
+          reward_std: 189.575
+episodes_lt_300_steps: 11
+episodes_g_300_steps: 0
+episodes_e_300_steps: 4
+           truncated: truncated
+False    3869
+True        4
+Name: count, dtype: int64
+          terminated: terminated
+False    3862
+True       11
+Name: count, dtype: int64
+
+Resumen por episodio:
+       episode_length  total_reward
+count       15.000000     15.000000
+mean       258.200000    109.956844
+std         40.023564    189.575370
+min        191.000000   -244.385638
+25%        224.000000     -5.328381
+50%        266.000000    214.322611
+75%        297.000000    250.665517
+max        300.000000    291.311113
+
+###########################################################################################3
+2000 EPS EVAL de EVAL_POLICY - 0000 SEED
+
+060420261500/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0
+
+Transformed 2000 episodes with a total of 535886 steps
+truncated    False  True 
+terminated               
+False       533886    987
+True          1005      8
+📊 Estadísticas de los episodios:
+        num_episodes: 2000.000
+          length_min: 85
+          length_max: 300
+          length_avg: 267.943
+          reward_min: -495.230
+          reward_max: 327.138
+          reward_avg: 111.383
+          reward_std: 145.630
+episodes_lt_300_steps: 1005
+episodes_g_300_steps: 0
+episodes_e_300_steps: 995
+           truncated: truncated
+False    534891
+True        995
+Name: count, dtype: int64
+          terminated: terminated
+False    534873
+True       1013
+Name: count, dtype: int64
+
+Resumen por episodio:
+       episode_length  total_reward
+count     2000.000000   2000.000000
+mean       267.943000    111.383295
+std         43.730366    145.630209
+min         85.000000   -495.229614
+25%        241.000000     46.362027
+50%        299.000000    132.411481
+75%        300.000000    235.658414
+max        300.000000    327.137805
+
+##################################################################################333
+2000 EPS EVAL de BEH_POLICY - 0000 SEED
+310320260800/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0'
+
+Transformed 2000 episodes with a total of 585393 steps
+truncated    False  True 
+terminated               
+False       583393   1877
+True           123      0
+📊 Estadísticas de los episodios:
+        num_episodes: 2000.000
+          length_min: 78
+          length_max: 300
+          length_avg: 292.697
+          reward_min: -442.503
+          reward_max: 281.257
+          reward_avg: 29.927
+          reward_std: 55.647
+episodes_lt_300_steps: 123
+episodes_g_300_steps: 0
+episodes_e_300_steps: 1877
+           truncated: truncated
+False    583516
+True       1877
+Name: count, dtype: int64
+          terminated: terminated
+False    585270
+True        123
+Name: count, dtype: int64
+
+Resumen por episodio:
+       episode_length  total_reward
+count     2000.000000   2000.000000
+mean       292.696500     29.926564
+std         32.258033     55.647405
+min         78.000000   -442.503317
+25%        300.000000      6.851251
+50%        300.000000     32.046212
+75%        300.000000     57.066915
+max        300.000000    281.256563
+
+
+##################################################################################333
+
+10000 EPS EVAL de BEH_POLICY - 0000 SEED
+310320260800/060426_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_Truewind_exp_0'
+Transformed 10000 episodes with a total of 2927234 steps
+truncated     False  True 
+terminated                
+False       2917234   9406
+True            591      3
+📊 Estadísticas de los episodios:
+        num_episodes: 10000.000
+          length_min: 75
+          length_max: 300
+          length_avg: 292.723
+          reward_min: -489.257
+          reward_max: 301.733
+          reward_avg: 30.965
+          reward_std: 55.643
+episodes_lt_300_steps: 591
+episodes_g_300_steps: 0
+episodes_e_300_steps: 9409
+           truncated: truncated
+False    2917825
+True        9409
+Name: count, dtype: int64
+          terminated: terminated
+False    2926640
+True         594
+Name: count, dtype: int64
+
+Resumen por episodio:
+       episode_length  total_reward
+count    10000.000000  10000.000000
+mean       292.723400     30.964844
+std         32.475994     55.643007
+min         75.000000   -489.257471
+25%        300.000000      6.798445
+50%        300.000000     32.087112
+75%        300.000000     58.030208
+max        300.000000    301.732790

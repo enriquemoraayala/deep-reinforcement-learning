@@ -12,7 +12,7 @@ if debug == 1:
     debugpy.wait_for_client()
 
 # EPISODES_JSON = '/opt/ml/code/episodes/130820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
-EPISODES_JSON = '/opt/ml/code/episodes/120820251600/080226_generated_rllib_ppo_rllib_seed_11111_200eps_300steps_exp_0'
+EPISODES_JSON = '/opt/ml/code/episodes/310320260800/060426_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_Truewind_exp_0'
 reader_beh = JsonReader(EPISODES_JSON)
 df, eps, steps = load_json_to_df_max(reader_beh, 100000)
 

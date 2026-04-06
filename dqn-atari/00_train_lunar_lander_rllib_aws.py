@@ -59,7 +59,7 @@ if __name__ == '__main__':
                         help="ppo/dqn")
     parser.add_argument("--numgpus", type=str, default='0')
     parser.add_argument("--num_epochs", type=int, default=2000)
-    parser.add_argument('--output_dir', type=str, default='/opt/ml/code/checkpoints/290320261800')
+    parser.add_argument('--output_dir', type=str, default='/opt/ml/code/checkpoints/300320261500')
     parser.add_argument("--enable_wind", type=str, default='True', help="Whether to enable wind in the environment.")
     args = parser.parse_args()
     print(f"Running with following CLI options: {args}")
