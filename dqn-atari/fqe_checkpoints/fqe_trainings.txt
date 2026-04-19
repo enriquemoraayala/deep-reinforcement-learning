@@ -1,0 +1,10 @@
+--> TXT para poner los resultados de los entrenamientos de FQE
+########################
+20261904
+[Data] loaded beh_test episodes: eps=2000 steps=585393 limit=2000
+[Eval] Estimated expected value from initial states: 0.733479
+
+#######################
+20260203
+[Data] loaded beh_test episodes: eps=2000 steps=521601 limit=2000
+[Eval] Estimated expected value from initial states: 2.557176

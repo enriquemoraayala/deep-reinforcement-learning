@@ -2,17 +2,17 @@ $schema: https://azuremlschemas.azureedge.net/latest/commandJob.schema.json
 type: command
 
 display_name: fqte-train-lunarlander
-experiment_name: fqte_gpu
+experiment_name: fqte_wind_episodes_gpu
 
 code: .
 command: >-
   python 02_train_fqte_from_scratch_aml_gpu_2.py
   --episodes_root ${{inputs.episodes}}
-  --beh_train_rel 120820251600/011125_01_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_exp_0
-  --beh_test_rel  120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0
-  --beh_val_rel   120820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0
-  --target_eval_rel 130820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0
-  --eval_checkpoint_dir ${{inputs.episodes}}/checkpoints/130820251600
+  --beh_train_rel 310320260800/060426_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_Truewind_exp_0
+  --beh_test_rel  310320260800/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0
+  --beh_val_rel   310320260800/080426_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_Truewind_exp_0
+  --target_eval_rel 060420261500/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0
+  --eval_checkpoint_dir ${{inputs.episodes}}/checkpoints/060420261500
   --output_dir ${{outputs.model}}
   --num_epochs 500
   --batch_size 4096
@@ -20,11 +20,17 @@ command: >-
   --save_every 30
   --lr 5e-4
   --gamma 0.99
-  --resume_training
+  --no_resume_training
 
 # Ajusta al compute que tengas creado en AML:
 compute: azureml:rllibgpu
 
+# Otros episodios y checkpoint
+#  --beh_train_rel 120820251600/011125_01_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_exp_0
+#  --beh_test_rel  120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0
+#  --beh_val_rel   120820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0
+#  --target_eval_rel 130820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0
+#  --eval_checkpoint_dir ${{inputs.episodes}}/checkpoints/130820251600
 # Opción A: usar imagen directa de Docker Hub
 #environment:
 #  image: docker.io/<usuario>/<tu_imagen>:<tag>
