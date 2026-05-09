@@ -33,6 +33,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.cuda.amp import GradScaler, autocast
+from oppe_utils import QNetwork
 
 import ray
 from ray.rllib.offline.json_reader import JsonReader
@@ -107,22 +108,22 @@ def _compute_actions_batch(policy, obs_batch: torch.Tensor) -> torch.Tensor:
     return torch.tensor(acts_list, dtype=torch.int64)
 
 
-# == Q-network for FQE ==
-class QNetwork(nn.Module):
-    def __init__(self, state_dim: int, num_actions: int, hidden_size: int = 256, final_hidden_size: int = 128 ):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(state_dim, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, final_hidden_size),
-            nn.ReLU(),
-            nn.Linear(final_hidden_size, num_actions),
-        )
+# == Q-network for FQE == QNetwork defined in oppe_utils to ensure consistency
+# class QNetwork(nn.Module):
+#    def __init__(self, state_dim: int, num_actions: int, hidden_size: int = 256, final_hidden_size: int = 128 ):
+#        super().__init__()
+#        self.net = nn.Sequential(
+#            nn.Linear(state_dim, hidden_size),
+#            nn.ReLU(),
+#            nn.Linear(hidden_size, hidden_size),
+#            nn.ReLU(),
+#            nn.Linear(hidden_size, final_hidden_size),
+#            nn.ReLU(),
+#            nn.Linear(final_hidden_size, num_actions),
+#        )
 
-    def forward(self, state: torch.Tensor) -> torch.Tensor:
-        return self.net(state)
+#    def forward(self, state: torch.Tensor) -> torch.Tensor:
+#        return self.net(state)
 
 
 def _infer_state_dim(states: torch.Tensor) -> int:

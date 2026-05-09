@@ -1,6 +1,18 @@
 --> TXT para poner los resultados de los entrenamientos de FQE
 ########################
 20261904
+['/mnt/azureml/cr/j/f757f6410ed242a98db56a6ff89e0552/cap/data-capability/wd/INPUT_episodes/310320260800/080426_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_Truewind_exp_0/*.json', 
+['/mnt/azureml/cr/j/f757f6410ed242a98db56a6ff89e0552/cap/data-capability/wd/INPUT_episodes/310320260800/060426_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_Truewind_exp_0/*.json',
+['/mnt/azureml/cr/j/f757f6410ed242a98db56a6ff89e0552/cap/data-capability/wd/INPUT_episodes/060420261500/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0/*.json',
+[Data] loaded beh_val episodes: eps=1000 steps=293444
+[Data] loaded target_eval episodes: eps=2000 steps=535886
+[Returns] BEH_POLICY   mean=15.250796 std=24.335945
+[Returns] TARGET_POLICY mean=35.428301 std=31.700670
+
+[FQE] Training Q-model...
+[Data] loaded beh_train episodes: eps=10000 steps=2927234 limit=10000
+
+
 [Data] loaded beh_test episodes: eps=2000 steps=585393 limit=2000
 [Eval] Estimated expected value from initial states: 0.733479
 
@@ -8,3 +20,17 @@
 20260203
 [Data] loaded beh_test episodes: eps=2000 steps=521601 limit=2000
 [Eval] Estimated expected value from initial states: 2.557176
+
+
+
+###########################
+20260905
+['/mnt/azureml/cr/j/f757f6410ed242a98db56a6ff89e0552/cap/data-capability/wd/INPUT_episodes/310320260800/080426_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_Truewind_exp_0/*.json', 
+['/mnt/azureml/cr/j/f757f6410ed242a98db56a6ff89e0552/cap/data-capability/wd/INPUT_episodes/310320260800/060426_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_Truewind_exp_0/*.json',
+['/mnt/azureml/cr/j/f757f6410ed242a98db56a6ff89e0552/cap/data-capability/wd/INPUT_episodes/060420261500/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0/*.json',
+[FQE] Early stopping at epoch 301. Best val_loss=3.558584
+/mnt/azureml/cr/j/56763f797544495d86eac6a78812de22/exe/wd/02_train_fqte_from_scratch_aml_gpu_2.py:377: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  best_sd = torch.load(best_model_path, map_location="cpu")
+[FQE] Loaded best model from: /mnt/azureml/cr/j/56763f797544495d86eac6a78812de22/cap/data-capability/wd/model/fqe_checkpoints/best_model.pt
+[Data] loaded beh_test episodes: eps=2000 steps=585393 limit=2000
+[Eval] Estimated expected value from initial states: -0.552503

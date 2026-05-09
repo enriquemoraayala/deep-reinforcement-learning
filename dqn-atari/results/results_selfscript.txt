@@ -88,6 +88,30 @@ Calculando estimador DM (política greedy w.r.t Q)...
 [DM greedy] J_hat ≈ 39.8202
 
 
+
+
+------> [with wind]
+loaded JSON: /opt/ml/code/episodes/310320260800/080426_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_Truewind_exp_0
+Transformed 1000 episodes with a total of 293444 steps
+loaded JSON: /opt/ml/code/episodes/060420261500/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0
+Transformed 2000 episodes with a total of 535886 steps
+Avg_Expecting_Return (BEH_POLICY) Value - RLLIB Generated episodes:  15.251 - STD  24.336
+Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes:  35.428 - STD  31.701
+loaded JSON: /opt/ml/code/episodes/310320260800/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0
+Transformed 2000 episodes with a total of 585393 steps
+Extrayendo estados iniciales s0 de cada episodio...
+Número de episodios: 2000
+Cargando modelo FQE...
+/opt/ml/code/oppe_utils.py:182: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  checkpoint = torch.load(FQE_CHECKPOINT_PATH + model_name, map_location=torch.device('cpu'))
+Se cargó el checkpoint desde /opt/ml/code/fqe_checkpoints/20260905/, entrenadas 30 épocas con Avg. Loss 2.7148972378744114
+Calculando estimador DM (política estocástica)...
+[DM estocástico] J_hat ≈ 257.1450
+Calculando estimador DM (política greedy w.r.t Q)...
+[DM greedy] J_hat ≈ 0.3002
+
+
+
 #############################################################################################################
 03.02_oppe_from_scratch_dm.py
 
@@ -105,6 +129,9 @@ Se cargó el checkpoint desde ./fqe_checkpoints, entrenadas 80 épocas con Avg. 
 Valor esperado estimado DM de la política PPO (retorno promedio inicial): -3.118 - STD: 18.660
 Valor esperado estimado DR de la política PPO (retorno promedio inicial): 47.117 - STD: 16.082
 
+
+---> [with wind]
+
 ##################################################################################################################
 
 03.03_oppe_rllib_selfcontent_script.py
@@ -119,6 +146,19 @@ Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes:  76.929 -
 Ordinary Importance Sampling (IS RLLIB) Value: 1.9778902337205626
 Direct Method (DM) with RLLIB V_ expected estimation -10.975613594055176 and STD 6.487840134380448
 Double Roboust (DR) with RLLIB V_ expected estimation -8.622335703923106 and STD 16.12636908490694
+
+
+--> [with wind]
+loaded JSON: /opt/ml/code/episodes/310320260800/080426_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_Truewind_exp_0
+Transformed 1000 episodes with a total of 293444 steps
+loaded JSON: /opt/ml/code/episodes/060420261500/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0
+Transformed 1000 episodes with a total of 268691 steps
+Avg_Expecting_Return (BEH_POLICY) Value - RLLIB Generated episodes:  15.251 - STD  24.336
+Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes:  34.820 - STD  31.033
+2026-05-09 16:44:37,853	WARNING json_reader.py:261 -- Treating input directory as glob patterns: ['/opt/ml/code/episodes/310320260800/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0/*.json', '/opt/ml/code/episodes/310320260800/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0/*.zip']
+Ordinary Importance Sampling (IS RLLIB) Value: 2.726419696544208
+Direct Method (DM) with RLLIB V_ expected estimation -33.54257583618164 and STD 12.882468201221903
+Double Roboust (DR) with RLLIB V_ expected estimation -29.070209793831083 and STD 14.375924467529819
 
 
 ##################################################################################################################

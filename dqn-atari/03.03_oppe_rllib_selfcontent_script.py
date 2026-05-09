@@ -173,14 +173,14 @@ def train_rllib_dm_dr_models(BEH_EPISODES_JSON_TRAIN, reader_beh_train, dr_estim
 
 def oppe():
 
-    BEH_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/120820251600"
-    EVAL_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/130820251600"
-    FQE_CHECKPOINT_PATH = "./fqe_checkpoints"
+    BEH_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/310320260800/best"
+    EVAL_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/060420261500/best"
+    FQE_CHECKPOINT_PATH = "/opt/ml/code/fqe_checkpoints/20260905/"
     
-    BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/120820251600/011125_01_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_exp_0'
-    BEH_EPISODES_JSON_TEST = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0'
-    BEH_EPISODES_JSON_VAL = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
-    EVAL_EPISODES_JSON = '/opt/ml/code/episodes/130820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
+    BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/310320260800/060426_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_Truewind_exp_0'
+    BEH_EPISODES_JSON_TEST = '/opt/ml/code/episodes/310320260800/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0'
+    BEH_EPISODES_JSON_VAL = '/opt/ml/code/episodes/310320260800/080426_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_Truewind_exp_0'
+    EVAL_EPISODES_JSON = '/opt/ml/code/episodes/060420261500/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0'
     
     # beh_policy = load_checkpoint(BEH_CHECKPOINT_PATH)
     eval_policy = load_checkpoint(EVAL_CHECKPOINT_PATH)

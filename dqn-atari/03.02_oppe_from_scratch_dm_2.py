@@ -151,14 +151,14 @@ def oppe():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Usando dispositivo: {device}")
 
-    BEH_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/120820251600"
-    EVAL_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/130820251600"
-    FQE_CHECKPOINT_PATH = "./20260104_fqe_checkpoints"
+    BEH_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/310320260800/best"
+    EVAL_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/060420261500/best"
+    FQE_CHECKPOINT_PATH = "/opt/ml/code/fqe_checkpoints/20260905/"
     
-    BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/120820251600/011125_01_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_exp_0'
-    BEH_EPISODES_JSON_TEST = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0'
-    BEH_EPISODES_JSON_VAL = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
-    EVAL_EPISODES_JSON = '/opt/ml/code/episodes/130820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
+    BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/310320260800/060426_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_Truewind_exp_0'
+    BEH_EPISODES_JSON_TEST = '/opt/ml/code/episodes/310320260800/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0'
+    BEH_EPISODES_JSON_VAL = '/opt/ml/code/episodes/310320260800/080426_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_Truewind_exp_0'
+    EVAL_EPISODES_JSON = '/opt/ml/code/episodes/060420261500/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0'
 
     
     # beh_policy = load_checkpoint(BEH_CHECKPOINT_PATH)
@@ -173,7 +173,7 @@ def oppe():
     beh_eps_df_val, eps, steps = load_json_to_df_max(reader_beh_val, 1000)
     print(f'loaded JSON: {BEH_EPISODES_JSON_VAL}')
     print(f"Transformed {eps} episodes with a total of {steps} steps")
-    target_eps_df, eps, steps = load_json_to_df_max(reader_target, 1000)
+    target_eps_df, eps, steps = load_json_to_df_max(reader_target, 2000)
     print(f'loaded JSON: {EVAL_EPISODES_JSON}')
     print(f"Transformed {eps} episodes with a total of {steps} steps")
     beh_expected_return, beh_return_stdev = calculate_policy_expected_value(beh_eps_df_val, 0.99)
@@ -195,7 +195,7 @@ def oppe():
 
     # 3. Cargar FQE
     print("Cargando modelo FQE...")
-    fqe_model = load_fqte(FQE_CHECKPOINT_PATH, device)
+    fqe_model = load_fqte(FQE_CHECKPOINT_PATH, 'fqe_epoch_30.pt', device)
 
     # 4. Estimación DM con política estocástica
     print("Calculando estimador DM (política estocástica)...")

@@ -2,7 +2,7 @@ $schema: https://azuremlschemas.azureedge.net/latest/commandJob.schema.json
 type: command
 
 display_name: fqte-train-lunarlander
-experiment_name: fqte_wind_episodes_gpu
+experiment_name: fqte_wind_episodes_gpu_2
 
 code: .
 command: >-

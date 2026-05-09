@@ -1,9 +1,17 @@
-import os, json, random, numpy as np, gymnasium as gym
+import os, json, random, re, numpy as np, gymnasium as gym
 import debugpy
 import pandas as pd
 import torch
+from tqdm import tqdm
 from ray.rllib.offline.json_reader import JsonReader
 from oppe_utils import load_json_to_df_max
+
+
+def extract_num_eps(path):
+    match = re.search(r'_(\d+)eps', os.path.basename(path))
+    if match:
+        return int(match.group(1))
+    raise ValueError(f'No se encontró el número de episodios en el nombre del fichero: {path}')
 
 
 def json_to_csv(rllib_json, csv_path, num_eps):
@@ -16,10 +24,14 @@ def json_to_csv(rllib_json, csv_path, num_eps):
 
 if __name__ == '__main__':
 
-    BEH_EPISODES_JSON_VAL = '/opt/ml/code/episodes/120820251600/190226_generated_rllib_ppo_rllib_seed_rotate_15eps_300steps_exp_0'
-    EVAL_EPISODES_JSON = '/opt/ml/code/episodes/130820251600/190226_generated_rllib_ppo_rllib_seed_rotate_15eps_300steps_exp_0'
-    BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/120820251600/011125_01_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_exp_0'
-    JSON_TO_CONVERT =  BEH_EPISODES_JSON_VAL
-    CSV_PATH =  '/opt/ml/code/episodes/120820251600/190226_generated_rllib_ppo_rllib_seed_rotate_15eps_300steps_exp_0.csv'
-    NUM_EPS = 15
-    json_to_csv(JSON_TO_CONVERT, CSV_PATH, NUM_EPS)
+    JSON_FILES = [
+        #'/opt/ml/code/episodes/310320260800/060426_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_Truewind_exp_0',
+        '/opt/ml/code/episodes/310320260800/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0',
+        #'/opt/ml/code/episodes/310320260800/080426_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_Truewind_exp_0',
+        #'/opt/ml/code/episodes/060420261500/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0',
+    ]
+
+    for json_path in tqdm(JSON_FILES, desc='Convirtiendo ficheros'):
+        num_eps = extract_num_eps(json_path)
+        csv_path = json_path + '.csv'
+        json_to_csv(json_path, csv_path, num_eps)
