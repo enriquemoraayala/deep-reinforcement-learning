@@ -177,15 +177,15 @@ def weighted_is_ope_log(df, gamma: float = 0.99, max_log_w_clip: float | None = 
 
 def oppe():
 
-    BEH_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/120820251600"
-    EVAL_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/130820251600"
-    FQE_CHECKPOINT_PATH = "./fqe_checkpoints"
+    BEH_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/310320260800/best"
+    EVAL_CHECKPOINT_PATH = "/opt/ml/code/checkpoints/060420261500/best"
+    FQE_CHECKPOINT_PATH = "/opt/ml/code/fqe_checkpoints/20260905/"
     
-    BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/120820251600/011125_01_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_exp_0'
-    BEH_EPISODES_JSON_TEST = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_exp_0'
-    BEH_EPISODES_JSON_VAL = '/opt/ml/code/episodes/120820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
-    EVAL_EPISODES_JSON = '/opt/ml/code/episodes/130820251600/011125_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_exp_0'
-    
+    BEH_EPISODES_JSON_TRAIN = '/opt/ml/code/episodes/310320260800/060426_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_Truewind_exp_0'
+    BEH_EPISODES_JSON_TEST = '/opt/ml/code/episodes/310320260800/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0'
+    BEH_EPISODES_JSON_VAL = '/opt/ml/code/episodes/310320260800/080426_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_Truewind_exp_0'
+    EVAL_EPISODES_JSON = '/opt/ml/code/episodes/060420261500/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0'
+
     # beh_policy = load_checkpoint(BEH_CHECKPOINT_PATH)
     eval_policy = load_checkpoint(EVAL_CHECKPOINT_PATH)
 
@@ -199,7 +199,7 @@ def oppe():
     beh_eps_d_val, eps, steps = load_json_to_df_max(reader_beh_val, 1000)
     print(f'loaded JSON: {BEH_EPISODES_JSON_VAL}')
     print(f"Transformed {eps} episodes with a total of {steps} steps")
-    target_eps_df, eps, steps = load_json_to_df_max(reader_target, 10000)
+    target_eps_df, eps, steps = load_json_to_df_max(reader_target, 2000)
     print(f'loaded JSON: {EVAL_EPISODES_JSON}')
     print(f"Transformed {eps} episodes with a total of {steps} steps")
     beh_expected_return, beh_return_stdev = calculate_policy_expected_value(beh_eps_d_val, 0.99)
@@ -208,7 +208,7 @@ def oppe():
     print(f"Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes: {target_expected_return: .3f} - STD {target_return_stdev: .3f}")
 
     print("Calculating IS, WIS from scratch")
-    beh_eps_df_test, eps, steps = load_json_to_df_max(reader_beh_test, 100000)
+    beh_eps_df_test, eps, steps = load_json_to_df_max(reader_beh_test, 2000)
     print(f'loaded JSON: {BEH_EPISODES_JSON_TEST}')
     print(f"Transformed {eps} episodes with a total of {steps} steps")
 

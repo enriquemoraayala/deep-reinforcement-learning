@@ -22,6 +22,22 @@ Ordinary IS (vect logprob): 9.711437639409819e-08
 Weighted IS (logp): 47.116515400342564
 Weighted IS (vect logp): 47.116515400342564
 
+
+---------------> WITH wind
+
+Transformed 1000 episodes with a total of 293444 steps
+loaded JSON: /opt/ml/code/episodes/060420261500/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0
+Transformed 2000 episodes with a total of 535886 steps
+Avg_Expecting_Return (BEH_POLICY) Value - RLLIB Generated episodes:  15.251 - STD  24.336
+Avg_Expecting_Return (TARGET_POLICY) Value - RLLIB Generated episodes:  35.428 - STD  31.701
+
+Ordinary IS: -1.568623108581768e-09
+Ordinary IS (logprob): 2.674624398328236e-08
+Ordinary IS (vect logprob): 2.6746248046810058e-08
+Weighted IS (logp): 12.40187030330126
+Weighted IS (vect logp): 12.401872321187565
+
+
 ######################################################################
 
 DM best model: [FQE] Epoch 100/200 avg_loss=11.635035

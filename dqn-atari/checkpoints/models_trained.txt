@@ -18,11 +18,14 @@
                 4) Genero 10000 episodios de BEH_POLICY_TRAIN -> 310320260800/060426_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_Truewind_exp_0'
                 5) Genero 2000 episodios de BEH_POLICY_EVAL -> 310320260800/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0
                 6) Genero 2000 episodios de EVAL_POLICY_EVAL -> 060420261500/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0
-                7) Entrenamos DM FQE network con los 10000 eps -> reentrenando
-                7.2) Calulamos DM 
+                7) Entrenamos DM FQE network con los 10000 eps -> done
+                7.2) Calulamos DM  -> done
                 8) Entrenamos DCG (graph antiguo)
                 9) Generamos episodios a partir de lo 15 de REVISION
                 10) Revisamos los datos. Espero encontrar: la estimacion con DCG del Reward es MUCHO MEJOR que la del DM ya que captura la estocasticidad
 
 310320260800: [iter 250] train_mean=38.65877820651215 | eval_mean=125.52697448824158 | best_eval=176.65054659868628 | solve_streak=0/5
 060420261500; [iter 2000] train_mean=114.13233163986182 | eval_mean=137.37421119457753 | best_eval=210.4714811972175 | solve_streak=0/5
+GRAPH MODELS:
+    - graph_310720251600_011125_01 -> Model DEFINITION = ORIGINAL. 
+    - graph_310720251600_170126_01 -> Model DEFINITION = ORIGINAL
