@@ -22,16 +22,25 @@ def json_to_csv(rllib_json, csv_path, num_eps):
     beh_df.to_csv(csv_path)
 
 
+def build_csv_path(json_path):
+    normalized_path = os.path.normpath(json_path)
+    output_folder = os.path.dirname(normalized_path)
+    containing_folder = os.path.basename(output_folder)
+    json_file_name = os.path.basename(normalized_path)
+    csv_file_name = f'{containing_folder}_{json_file_name}.csv'
+    return os.path.join(output_folder, csv_file_name)
+
+
 if __name__ == '__main__':
 
     JSON_FILES = [
-        #'/opt/ml/code/episodes/310320260800/060426_generated_rllib_ppo_rllib_seed_0000_10000eps_300steps_Truewind_exp_0',
-        '/opt/ml/code/episodes/310320260800/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0',
+        '/opt/ml/code/episodes/310320260800/170526_generated_rllib_ppo_rllib_seed_rotate_15eps_300steps_Truewind_exp_0',
+        '/opt/ml/code/episodes/060420261500/170526_generated_rllib_ppo_rllib_seed_rotate_15eps_300steps_Truewind_exp_0',
         #'/opt/ml/code/episodes/310320260800/080426_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_Truewind_exp_0',
         #'/opt/ml/code/episodes/060420261500/060426_generated_rllib_ppo_rllib_seed_0000_2000eps_300steps_Truewind_exp_0',
     ]
 
     for json_path in tqdm(JSON_FILES, desc='Convirtiendo ficheros'):
         num_eps = extract_num_eps(json_path)
-        csv_path = json_path + '.csv'
+        csv_path = build_csv_path(json_path)
         json_to_csv(json_path, csv_path, num_eps)

@@ -322,3 +322,61 @@ min         75.000000   -489.257471
 50%        300.000000     32.087112
 75%        300.000000     58.030208
 max        300.000000    301.732790
+
+
+##################################################################################
+
+310320260800/170526_generated_rllib_ppo_rllib_seed_rotate_15eps_300steps_Truewind_exp_0
+Transformed 15 episodes with a total of 4325 steps
+truncated   False  True 
+terminated              
+False        4310     14
+True            1      0
+📊 Estadísticas de los episodios:
+        num_episodes: 15.000
+          length_min: 125
+          length_max: 300
+          length_avg: 288.333
+          reward_min: 1.548
+          reward_max: 130.010
+          reward_avg: 38.720
+          reward_std: 32.769
+episodes_lt_300_steps: 1
+episodes_g_300_steps: 0
+episodes_e_300_steps: 14
+           truncated: truncated
+False    4311
+True       14
+Name: count, dtype: int64
+          terminated: terminated
+False    4324
+True        1
+
+###########################################################################################
+
+060420261500/170526_generated_rllib_ppo_rllib_seed_rotate_15eps_300steps_Truewind_exp_0
+Transformed 15 episodes with a total of 3873 steps
+truncated   False  True 
+terminated              
+False        3858      4
+True           11      0
+📊 Estadísticas de los episodios:
+        num_episodes: 15.000
+          length_min: 191
+          length_max: 300
+          length_avg: 258.200
+          reward_min: -244.386
+          reward_max: 291.311
+          reward_avg: 109.957
+          reward_std: 189.575
+episodes_lt_300_steps: 11
+episodes_g_300_steps: 0
+episodes_e_300_steps: 4
+           truncated: truncated
+False    3869
+True        4
+Name: count, dtype: int64
+          terminated: terminated
+False    3862
+True       11
+Name: count, dtype: int64
