@@ -29,12 +29,12 @@ def load_json_to_df(reader, num_eps):
             total_steps += 1
             row = {'ep': episode['eps_id'][step],
                    'step': step,
-                   'obs': episode['obs'][step],
+                   'obs': str(episode['obs'][step]).replace('\n', ' '),
                    'action': episode['actions'][step],
                    'action_prob': episode['action_prob'][step],
                    'logprob': episode['action_logp'][step],
                    'reward': episode['rewards'][step],
-                   'next_state': episode['new_obs'][step],
+                   'next_state': str(episode['new_obs'][step]).replace('\n', ' '),
                    'truncated': episode['truncateds'][step],
                    'terminated': episode['terminateds'][step],
                    'done': episode['terminateds'][step], #considero terminated == done para compatibilidad
@@ -72,12 +72,12 @@ def load_json_to_df_max(reader, max_episodes=None):
             row = {
                 "ep": ep_id,
                 "step": batch["t"][t],
-                "obs": batch["obs"][t],
+                "obs": str(batch["obs"][t]).replace('\n', ' '),
                 "action": batch["actions"][t],
                 "action_prob": batch["action_prob"][t],
                 "logprob": batch["action_logp"][t],
                 "reward": batch["rewards"][t],
-                "next_state": batch["new_obs"][t],
+                "next_state": str(batch["new_obs"][t]).replace('\n', ' '),
                 "truncated": batch["truncateds"][t],
                 "terminated": batch["terminateds"][t],
                 # done ≈ terminated para compatibilidad

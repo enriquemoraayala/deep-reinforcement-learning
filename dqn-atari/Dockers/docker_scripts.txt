@@ -12,3 +12,6 @@ sudo docker run --rm -it -p 5678:5678 -v "$PWD":/opt/ml/code sagemaker-rllib-sco
 docker image prune -f
 
 sudo docker run --rm -it -p 5678:5678 -v "$PWD":/opt/ml/code sagemaker-rllib-211-gymnasium-10:latest python /opt/ml/code/03.01_oppe_from_scratch.py
+
+
+enriquemoraayala/dcg-ope:v1.0.0 -> working but without the seaborn
