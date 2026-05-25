@@ -164,6 +164,8 @@ Direct Method (DM) with RLLIB V_ expected estimation -10.975613594055176 and STD
 Double Roboust (DR) with RLLIB V_ expected estimation -8.622335703923106 and STD 16.12636908490694
 
 
+
+
 --> [with wind]
 loaded JSON: /opt/ml/code/episodes/310320260800/080426_generated_rllib_ppo_rllib_seed_0000_1000eps_300steps_Truewind_exp_0
 Transformed 1000 episodes with a total of 293444 steps
@@ -178,3 +180,15 @@ Double Roboust (DR) with RLLIB V_ expected estimation -29.070209793831083 and ST
 
 
 ##################################################################################################################
+
+
+03-predict-eval-policy-eps.py
+fqe_checkpoints/20260905/, entrenadas 30 épocas con Avg. Loss 2.714897237874411
+ graph.load_state_dict(torch.load(os.path.join('/opt/ml/code/src/models', 'graph_090520261700_310320260800_060426_01_DEFv1.pt')))
+ DATA_FILE_NAME = 'data_310320260800_170526_generated_rllib_ppo_rllib_seed_rotate_15eps_300steps_Truewind_exp_0.pt'
+
+ 
+Factual/Counterfactual average effect: 16.71750182705838 48.324273711059824
+Factual/Mixed Counterfactual average effect: 16.71750182705838 26.22409790405865
+Factual/DM average effect: 16.71750182705838 -241.55095733335915
+
