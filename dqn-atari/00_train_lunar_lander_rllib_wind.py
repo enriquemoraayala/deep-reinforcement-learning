@@ -51,8 +51,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--solve-reward", type=float, default=200.0)
     parser.add_argument("--solve-streak", type=int, default=5)
     parser.add_argument("--checkpoint-every", type=int, default=80)
-    parser.add_argument("--checkpoint-dir", type=str, default="/opt/ml/code/checkpoints/060420261500")
-    parser.add_argument("--results-csv", type=str, default="/opt/ml/code/results/060420261500/lunarlander_ppo_results.csv")
+    parser.add_argument("--checkpoint-dir", type=str, default="/opt/ml/code/checkpoints/290620261500")
+    parser.add_argument("--results-csv", type=str, default="/opt/ml/code/results/290620261500/lunarlander_ppo_results.csv")
     # parser.add_argument("--tensorboard-logdir", type=str, default=os.path.join(os.path.expanduser("~"), "ray_results"))
     parser.add_argument("--tensorboard-logdir", type=str, default="/opt/ml/code/traininglogs")
 
@@ -60,7 +60,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gravity", type=float, default=-10.0)
     parser.add_argument("--wind-power", type=float, default=15.0)
     parser.add_argument("--turbulence-power", type=float, default=1.5)
-    parser.add_argument("--enable-wind", dest="enable_wind", action="store_true", default=True)
+    parser.add_argument("--enable-wind", dest="enable_wind", action="store_true", default=False)
     parser.add_argument("--disable-wind", dest="enable_wind", action="store_false")
 
     # Resources / sampling
